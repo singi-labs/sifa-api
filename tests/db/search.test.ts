@@ -8,13 +8,16 @@ describe('Full-text search', () => {
 
   beforeAll(async () => {
     // Insert test profile
-    await db.insert(profiles).values({
-      did: 'did:plc:test-search',
-      handle: 'alice.bsky.social',
-      headline: 'Senior TypeScript Engineer',
-      about: 'Building distributed systems',
-      createdAt: new Date(),
-    }).onConflictDoNothing();
+    await db
+      .insert(profiles)
+      .values({
+        did: 'did:plc:test-search',
+        handle: 'alice.bsky.social',
+        headline: 'Senior TypeScript Engineer',
+        about: 'Building distributed systems',
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
   });
 
   afterAll(async () => {

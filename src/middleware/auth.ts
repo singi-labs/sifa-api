@@ -31,10 +31,7 @@ export async function resolveSessionDid(
  * 3. Restores the OAuth session via the NodeOAuthClient
  * 4. Attaches `request.did` and `request.session` for downstream handlers
  */
-export function createAuthMiddleware(
-  oauthClient: NodeOAuthClient | null,
-  db: Database,
-) {
+export function createAuthMiddleware(oauthClient: NodeOAuthClient | null, db: Database) {
   return async function requireAuth(request: FastifyRequest, reply: FastifyReply) {
     const sessionId = request.cookies?.session;
     if (!sessionId) {
@@ -42,7 +39,9 @@ export function createAuthMiddleware(
     }
 
     if (!oauthClient) {
-      return reply.status(503).send({ error: 'ServiceUnavailable', message: 'OAuth client not available' });
+      return reply
+        .status(503)
+        .send({ error: 'ServiceUnavailable', message: 'OAuth client not available' });
     }
 
     // Look up session by cookie value from sessions table

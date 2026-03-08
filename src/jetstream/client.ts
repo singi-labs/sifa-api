@@ -68,7 +68,9 @@ export function createJetstreamClient(opts: JetstreamClientOptions) {
     ws.on('close', () => {
       if (running) {
         logger.warn({ reconnectDelay }, 'Jetstream disconnected, reconnecting');
-        setTimeout(() => { void connect(); }, reconnectDelay);
+        setTimeout(() => {
+          void connect();
+        }, reconnectDelay);
         reconnectDelay = Math.min(reconnectDelay * 2, 30000);
       }
     });

@@ -12,10 +12,7 @@ describe('Follow routes', () => {
 
   beforeAll(async () => {
     mkdirSync(tmpKeysDir, { recursive: true });
-    writeFileSync(
-      jwksPath,
-      JSON.stringify({ keys: [{ kty: 'EC', crv: 'P-256', kid: 'test' }] }),
-    );
+    writeFileSync(jwksPath, JSON.stringify({ keys: [{ kty: 'EC', crv: 'P-256', kid: 'test' }] }));
 
     app = await buildServer({
       NODE_ENV: 'test',

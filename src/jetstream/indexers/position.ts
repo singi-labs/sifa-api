@@ -12,9 +12,7 @@ export function createPositionIndexer(db: Database) {
     const { operation, rkey, record } = commit;
 
     if (operation === 'delete') {
-      await db
-        .delete(positions)
-        .where(and(eq(positions.did, did), eq(positions.rkey, rkey)));
+      await db.delete(positions).where(and(eq(positions.did, did), eq(positions.rkey, rkey)));
       logger.info({ did, rkey }, 'Deleted position');
       return;
     }

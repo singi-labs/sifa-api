@@ -12,9 +12,7 @@ export function createEducationIndexer(db: Database) {
     const { operation, rkey, record } = commit;
 
     if (operation === 'delete') {
-      await db
-        .delete(education)
-        .where(and(eq(education.did, did), eq(education.rkey, rkey)));
+      await db.delete(education).where(and(eq(education.did, did), eq(education.rkey, rkey)));
       logger.info({ did, rkey }, 'Deleted education');
       return;
     }

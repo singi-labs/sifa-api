@@ -10,7 +10,11 @@ const loginSchema = z.object({
   handle: z.string().min(1).max(253),
 });
 
-export function registerOAuthRoutes(app: FastifyInstance, db: Database, oauthClient: NodeOAuthClient | null) {
+export function registerOAuthRoutes(
+  app: FastifyInstance,
+  db: Database,
+  oauthClient: NodeOAuthClient | null,
+) {
   // Login: initiate OAuth flow
   app.post('/oauth/login', async (request, reply) => {
     const body = loginSchema.safeParse(request.body);
@@ -104,7 +108,6 @@ export function registerOAuthRoutes(app: FastifyInstance, db: Database, oauthCli
       const session = await oauthClient.restore(row.did);
       return reply.send({
         did: session.did,
-        handle: session.handle,
       });
     } catch {
       reply.clearCookie('session', { path: '/' });

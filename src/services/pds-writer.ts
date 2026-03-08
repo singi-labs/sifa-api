@@ -42,20 +42,17 @@ export function buildApplyWritesOp(
   }
 
   return {
-    $type: action === 'create'
-      ? 'com.atproto.repo.applyWrites#create' as const
-      : 'com.atproto.repo.applyWrites#update' as const,
+    $type:
+      action === 'create'
+        ? ('com.atproto.repo.applyWrites#create' as const)
+        : ('com.atproto.repo.applyWrites#update' as const),
     collection,
     rkey,
     value: { $type: collection, ...record },
   };
 }
 
-export async function writeToUserPds(
-  agent: Agent,
-  repo: string,
-  writes: ApplyWritesOp[],
-) {
+export async function writeToUserPds(agent: Agent, repo: string, writes: ApplyWritesOp[]) {
   return agent.com.atproto.repo.applyWrites({
     repo,
     writes,

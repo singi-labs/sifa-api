@@ -9,16 +9,36 @@ describe('Mutual follow detection', () => {
 
   beforeAll(async () => {
     // Create mutual follows
-    await db.insert(connections).values([
-      { followerDid: 'did:plc:alice', subjectDid: 'did:plc:bob', source: 'sifa', createdAt: new Date() },
-      { followerDid: 'did:plc:bob', subjectDid: 'did:plc:alice', source: 'sifa', createdAt: new Date() },
-      // One-way follow
-      { followerDid: 'did:plc:alice', subjectDid: 'did:plc:carol', source: 'sifa', createdAt: new Date() },
-    ]).onConflictDoNothing();
+    await db
+      .insert(connections)
+      .values([
+        {
+          followerDid: 'did:plc:alice',
+          subjectDid: 'did:plc:bob',
+          source: 'sifa',
+          createdAt: new Date(),
+        },
+        {
+          followerDid: 'did:plc:bob',
+          subjectDid: 'did:plc:alice',
+          source: 'sifa',
+          createdAt: new Date(),
+        },
+        // One-way follow
+        {
+          followerDid: 'did:plc:alice',
+          subjectDid: 'did:plc:carol',
+          source: 'sifa',
+          createdAt: new Date(),
+        },
+      ])
+      .onConflictDoNothing();
   });
 
   afterAll(async () => {
-    await db.execute(sql`DELETE FROM connections WHERE follower_did IN ('did:plc:alice', 'did:plc:bob', 'did:plc:carol')`);
+    await db.execute(
+      sql`DELETE FROM connections WHERE follower_did IN ('did:plc:alice', 'did:plc:bob', 'did:plc:carol')`,
+    );
     await db.$client.end();
   });
 

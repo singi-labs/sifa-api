@@ -34,5 +34,6 @@ export class ValkeyStateStore implements NodeSavedStateStore {
 export interface ValkeyClient {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, exFlag: 'EX', seconds: number): Promise<unknown>;
-  del(key: string | string[]): Promise<number>;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  del(...args: any[]): Promise<number>;
 }

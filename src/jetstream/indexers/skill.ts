@@ -12,9 +12,7 @@ export function createSkillIndexer(db: Database) {
     const { operation, rkey, record } = commit;
 
     if (operation === 'delete') {
-      await db
-        .delete(skills)
-        .where(and(eq(skills.did, did), eq(skills.rkey, rkey)));
+      await db.delete(skills).where(and(eq(skills.did, did), eq(skills.rkey, rkey)));
       logger.info({ did, rkey }, 'Deleted skill');
       return;
     }

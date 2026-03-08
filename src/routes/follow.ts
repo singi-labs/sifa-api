@@ -43,52 +43,61 @@ export function registerFollowRoutes(
     ]);
 
     // Optimistically insert into connections table (with rkey)
-    await db.insert(connections).values({
-      followerDid: did,
-      subjectDid: body.data.subjectDid,
-      source: 'sifa',
-      rkey,
-      createdAt: new Date(),
-    }).onConflictDoNothing();
+    await db
+      .insert(connections)
+      .values({
+        followerDid: did,
+        subjectDid: body.data.subjectDid,
+        source: 'sifa',
+        rkey,
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
 
     return reply.status(201).send({ rkey });
   });
 
   // DELETE /api/follow/:did -- remove a follow relationship
-  app.delete<{ Params: { did: string } }>('/api/follow/:did', { preHandler: requireAuth }, async (request, reply) => {
-    const followerDid = (request as any).did as string;
-    const { did: subjectDid } = request.params;
-    const session = (request as any).session;
+  app.delete<{ Params: { did: string } }>(
+    '/api/follow/:did',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const followerDid = (request as any).did as string;
+      const { did: subjectDid } = request.params;
+      const session = (request as any).session;
 
-    // Look up the rkey from the connections table
-    const [row] = await db
-      .select({ rkey: connections.rkey })
-      .from(connections)
-      .where(
-        and(
-          eq(connections.followerDid, followerDid),
-          eq(connections.subjectDid, subjectDid),
-          eq(connections.source, 'sifa'),
-        ),
-      )
-      .limit(1);
+      // Look up the rkey from the connections table
+      const [row] = await db
+        .select({ rkey: connections.rkey })
+        .from(connections)
+        .where(
+          and(
+            eq(connections.followerDid, followerDid),
+            eq(connections.subjectDid, subjectDid),
+            eq(connections.source, 'sifa'),
+          ),
+        )
+        .limit(1);
 
-    // Delete PDS record if we have the rkey
-    if (row?.rkey) {
-      await writeToUserPds(session, followerDid, [
-        buildApplyWritesOp('delete', 'id.sifa.graph.follow', row.rkey),
-      ]);
-    }
+      // Delete PDS record if we have the rkey
+      if (row?.rkey) {
+        await writeToUserPds(session, followerDid, [
+          buildApplyWritesOp('delete', 'id.sifa.graph.follow', row.rkey),
+        ]);
+      }
 
-    // Remove from connections table
-    await db.delete(connections).where(
-      and(
-        eq(connections.followerDid, followerDid),
-        eq(connections.subjectDid, subjectDid),
-        eq(connections.source, 'sifa'),
-      ),
-    );
+      // Remove from connections table
+      await db
+        .delete(connections)
+        .where(
+          and(
+            eq(connections.followerDid, followerDid),
+            eq(connections.subjectDid, subjectDid),
+            eq(connections.source, 'sifa'),
+          ),
+        );
 
-    return reply.status(200).send({ status: 'ok' });
-  });
+      return reply.status(200).send({ status: 'ok' });
+    },
+  );
 }

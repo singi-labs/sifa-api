@@ -18,13 +18,16 @@ describe('Search API', () => {
     mkdirSync(tmpKeysDir, { recursive: true });
     writeFileSync(jwksPath, JSON.stringify({ keys: [{ kty: 'EC', crv: 'P-256', kid: 'test' }] }));
 
-    await db.insert(profiles).values({
-      did: 'did:plc:search-test',
-      handle: 'searchtest.bsky.social',
-      headline: 'Senior TypeScript Developer',
-      about: 'Building distributed systems',
-      createdAt: new Date(),
-    }).onConflictDoNothing();
+    await db
+      .insert(profiles)
+      .values({
+        did: 'did:plc:search-test',
+        handle: 'searchtest.bsky.social',
+        headline: 'Senior TypeScript Developer',
+        about: 'Building distributed systems',
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
 
     app = await buildServer({
       NODE_ENV: 'test',
@@ -60,13 +63,19 @@ describe('Search API', () => {
   });
 
   it('GET /api/search/profiles returns empty for no matches', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=xyznonexistent999' });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/search/profiles?q=xyznonexistent999',
+    });
     expect(res.statusCode).toBe(200);
     expect(res.json().profiles).toHaveLength(0);
   });
 
   it('GET /api/search/profiles respects limit parameter', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=TypeScript&limit=1' });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/search/profiles?q=TypeScript&limit=1',
+    });
     expect(res.statusCode).toBe(200);
     expect(res.json().profiles.length).toBeLessThanOrEqual(1);
   });

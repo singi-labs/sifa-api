@@ -20,38 +20,50 @@ describe('GET /api/profile/:handleOrDid', () => {
     writeFileSync(jwksPath, JSON.stringify({ keys: [{ kty: 'EC', crv: 'P-256', kid: 'test' }] }));
 
     // Seed test data
-    await db.insert(profiles).values({
-      did: 'did:plc:test-profile',
-      handle: 'testuser.bsky.social',
-      headline: 'Test Engineer',
-      about: 'Building tests',
-      createdAt: new Date(),
-    }).onConflictDoNothing();
+    await db
+      .insert(profiles)
+      .values({
+        did: 'did:plc:test-profile',
+        handle: 'testuser.bsky.social',
+        headline: 'Test Engineer',
+        about: 'Building tests',
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
 
-    await db.insert(positions).values({
-      did: 'did:plc:test-profile',
-      rkey: '3abc',
-      companyName: 'Test Corp',
-      title: 'Engineer',
-      startDate: '2020-01',
-      current: true,
-      createdAt: new Date(),
-    }).onConflictDoNothing();
+    await db
+      .insert(positions)
+      .values({
+        did: 'did:plc:test-profile',
+        rkey: '3abc',
+        companyName: 'Test Corp',
+        title: 'Engineer',
+        startDate: '2020-01',
+        current: true,
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
 
-    await db.insert(education).values({
-      did: 'did:plc:test-profile',
-      rkey: '3def',
-      institution: 'Test University',
-      degree: 'BSc',
-      createdAt: new Date(),
-    }).onConflictDoNothing();
+    await db
+      .insert(education)
+      .values({
+        did: 'did:plc:test-profile',
+        rkey: '3def',
+        institution: 'Test University',
+        degree: 'BSc',
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
 
-    await db.insert(skills).values({
-      did: 'did:plc:test-profile',
-      rkey: '3ghi',
-      skillName: 'TypeScript',
-      createdAt: new Date(),
-    }).onConflictDoNothing();
+    await db
+      .insert(skills)
+      .values({
+        did: 'did:plc:test-profile',
+        rkey: '3ghi',
+        skillName: 'TypeScript',
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
 
     app = await buildServer({
       NODE_ENV: 'test',

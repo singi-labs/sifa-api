@@ -15,12 +15,26 @@ export async function getMutualFollowCount(db: Database, did: string): Promise<n
 
 export async function checkViewerRelationship(db: Database, viewerDid: string, profileDid: string) {
   const [viewerFollowsProfile, profileFollowsViewer] = await Promise.all([
-    db.select({ value: count() }).from(connections).where(
-      and(eq(connections.followerDid, viewerDid), eq(connections.subjectDid, profileDid), eq(connections.source, 'sifa')),
-    ),
-    db.select({ value: count() }).from(connections).where(
-      and(eq(connections.followerDid, profileDid), eq(connections.subjectDid, viewerDid), eq(connections.source, 'sifa')),
-    ),
+    db
+      .select({ value: count() })
+      .from(connections)
+      .where(
+        and(
+          eq(connections.followerDid, viewerDid),
+          eq(connections.subjectDid, profileDid),
+          eq(connections.source, 'sifa'),
+        ),
+      ),
+    db
+      .select({ value: count() })
+      .from(connections)
+      .where(
+        and(
+          eq(connections.followerDid, profileDid),
+          eq(connections.subjectDid, viewerDid),
+          eq(connections.source, 'sifa'),
+        ),
+      ),
   ]);
 
   const isFollowing = (viewerFollowsProfile[0]?.value ?? 0) > 0;
@@ -36,9 +50,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
       const { handleOrDid } = request.params;
 
       const isDid = handleOrDid.startsWith('did:');
-      const condition = isDid
-        ? eq(profiles.did, handleOrDid)
-        : eq(profiles.handle, handleOrDid);
+      const condition = isDid ? eq(profiles.did, handleOrDid) : eq(profiles.handle, handleOrDid);
 
       const [profile] = await db.select().from(profiles).where(condition).limit(1);
 
@@ -54,20 +66,21 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
 
       const viewerDid = await resolveSessionDid(db, request.cookies?.session);
 
-      const [followersResult, followingResult, connectionsCountResult, viewerRelationship] = await Promise.all([
-        db
-          .select({ value: count() })
-          .from(connections)
-          .where(and(eq(connections.subjectDid, profile.did), eq(connections.source, 'sifa'))),
-        db
-          .select({ value: count() })
-          .from(connections)
-          .where(and(eq(connections.followerDid, profile.did), eq(connections.source, 'sifa'))),
-        getMutualFollowCount(db, profile.did),
-        viewerDid && viewerDid !== profile.did
-          ? checkViewerRelationship(db, viewerDid, profile.did)
-          : Promise.resolve(undefined),
-      ]);
+      const [followersResult, followingResult, connectionsCountResult, viewerRelationship] =
+        await Promise.all([
+          db
+            .select({ value: count() })
+            .from(connections)
+            .where(and(eq(connections.subjectDid, profile.did), eq(connections.source, 'sifa'))),
+          db
+            .select({ value: count() })
+            .from(connections)
+            .where(and(eq(connections.followerDid, profile.did), eq(connections.source, 'sifa'))),
+          getMutualFollowCount(db, profile.did),
+          viewerDid && viewerDid !== profile.did
+            ? checkViewerRelationship(db, viewerDid, profile.did)
+            : Promise.resolve(undefined),
+        ]);
 
       const followersCount = followersResult[0]?.value ?? 0;
       const followingCount = followingResult[0]?.value ?? 0;
@@ -119,7 +132,12 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         followersCount,
         followingCount,
         connectionsCount: connectionsCountResult,
-        ...(viewerRelationship ? { isFollowing: viewerRelationship.isFollowing, isConnection: viewerRelationship.isConnection } : {}),
+        ...(viewerRelationship
+          ? {
+              isFollowing: viewerRelationship.isFollowing,
+              isConnection: viewerRelationship.isConnection,
+            }
+          : {}),
       });
     },
   );

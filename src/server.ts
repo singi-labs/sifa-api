@@ -1,4 +1,4 @@
-import Fastify from 'fastify';
+import Fastify, { type FastifyError } from 'fastify';
 import * as Sentry from '@sentry/node';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
@@ -48,7 +48,7 @@ export async function buildServer(config: Env) {
   await app.register(cookie);
   await app.register(rateLimit, { max: 60, timeWindow: '1 minute' });
 
-  app.setErrorHandler(async (error, _request, reply) => {
+  app.setErrorHandler(async (error: FastifyError, _request, reply) => {
     if (config.GLITCHTIP_DSN) {
       Sentry.captureException(error);
     }

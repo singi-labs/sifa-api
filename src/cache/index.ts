@@ -1,4 +1,4 @@
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 
 export function createValkey(url: string) {
   return new Redis(url, {
@@ -7,4 +7,4 @@ export function createValkey(url: string) {
   });
 }
 
-export type ValkeyClient = ReturnType<typeof createValkey>;
+export type ValkeyClient = Redis;

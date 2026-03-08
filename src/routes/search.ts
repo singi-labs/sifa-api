@@ -6,7 +6,9 @@ export function registerSearchRoutes(app: FastifyInstance, db: Database) {
   app.get('/api/search/profiles', async (request, reply) => {
     const { q, limit = '20', offset = '0' } = request.query as Record<string, string>;
     if (!q?.trim()) {
-      return reply.status(400).send({ error: 'InvalidRequest', message: 'Query parameter q is required' });
+      return reply
+        .status(400)
+        .send({ error: 'InvalidRequest', message: 'Query parameter q is required' });
     }
 
     const limitNum = Math.min(parseInt(limit, 10) || 20, 100);

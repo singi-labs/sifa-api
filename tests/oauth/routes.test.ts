@@ -8,7 +8,10 @@ describe('OAuth routes', () => {
 
   beforeAll(async () => {
     mkdirSync('./keys', { recursive: true });
-    writeFileSync('./keys/jwks.json', JSON.stringify({ keys: [{ kty: 'EC', crv: 'P-256', kid: 'test' }] }));
+    writeFileSync(
+      './keys/jwks.json',
+      JSON.stringify({ keys: [{ kty: 'EC', crv: 'P-256', kid: 'test' }] }),
+    );
     app = await buildServer({
       NODE_ENV: 'test',
       PORT: 0,

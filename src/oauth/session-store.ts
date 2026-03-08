@@ -59,8 +59,6 @@ export class DbSessionStore implements NodeSavedSessionStore {
   }
 
   async del(key: string): Promise<void> {
-    await this.db
-      .delete(oauthSessions)
-      .where(eq(oauthSessions.sessionId, key));
+    await this.db.delete(oauthSessions).where(eq(oauthSessions.sessionId, key));
   }
 }
