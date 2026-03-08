@@ -8,6 +8,7 @@ import { createDb } from './db/index.js';
 import { registerOAuthMetadata } from './oauth/metadata.js';
 import { registerOAuthRoutes } from './oauth/routes.js';
 import { registerProfileRoutes } from './routes/profile.js';
+import { registerProfileWriteRoutes } from './routes/profile-write.js';
 
 export async function buildServer(config: Env) {
   const app = Fastify({
@@ -28,6 +29,7 @@ export async function buildServer(config: Env) {
   registerOAuthMetadata(app, config);
   registerOAuthRoutes(app, null);
   registerProfileRoutes(app, db);
+  registerProfileWriteRoutes(app, db, null);
 
   return app;
 }
