@@ -1,0 +1,38 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sifa
+      POSTGRES_PASSWORD: sifa
+      POSTGRES_DB: sifa
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  valkey:
+    image: valkey/valkey:8-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+
+  pds:
+    image: ghcr.io/bluesky-social/pds:latest
+    restart: unless-stopped
+    environment:
+      PDS_HOSTNAME: localhost
+      PDS_DATA_DIRECTORY: /pds
+      PDS_BLOBSTORE_DISK_LOCATION: /pds/blocks
+      PDS_JWT_SECRET: devjwtsecret
+      PDS_ADMIN_PASSWORD: admin
+      PDS_PLC_ROTATION_KEY_K256_PRIVATE_KEY_HEX: ""
+      PDS_INVITE_REQUIRED: "false"
+    ports:
+      - "2583:3000"
+    volumes:
+      - pds-data:/pds
+
+volumes:
+  pgdata:
+  pds-data:
