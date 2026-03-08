@@ -38,6 +38,10 @@ jobs:
         run: npm run typecheck
       - name: Format Check
         run: npm run format:check
+      - name: Push DB Schema
+        run: npm run db:push
+        env:
+          DATABASE_URL: postgresql://sifa:sifa@localhost:5432/sifa_test
       - name: Test
         run: npm test
         env:
