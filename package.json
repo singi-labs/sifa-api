@@ -1,8 +1,8 @@
 {
   "name": "sifa-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Sifa professional network API backend",
+  "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
     "build": "tsc",
@@ -15,8 +15,8 @@
     "services:down": "docker compose -f docker-compose.dev.yml down"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Singi Labs",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
@@ -31,13 +31,10 @@
   },
   "devDependencies": {
     "@types/node": "^25.3.5",
-    "@types/supertest": "^7.2.0",
-    "@typescript-eslint/eslint-plugin": "^8.56.1",
-    "@typescript-eslint/parser": "^8.56.1",
     "eslint": "^10.0.3",
-    "supertest": "^7.2.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
+    "typescript-eslint": "^8.56.1",
     "vitest": "^4.0.18"
   }
 }

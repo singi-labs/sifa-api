@@ -9,7 +9,7 @@ const envSchema = z.object({
   SIFA_DID: z.string().startsWith('did:'),
   JETSTREAM_URL: z.string().url(),
   OAUTH_JWKS_PATH: z.string(),
-  GLITCHTIP_DSN: z.string().optional(),
+  GLITCHTIP_DSN: z.string().url().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
