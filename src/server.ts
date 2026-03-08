@@ -5,6 +5,7 @@ import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import type { Env } from './config.js';
 import { registerOAuthMetadata } from './oauth/metadata.js';
+import { registerOAuthRoutes } from './oauth/routes.js';
 
 export async function buildServer(config: Env) {
   const app = Fastify({
@@ -21,6 +22,7 @@ export async function buildServer(config: Env) {
   app.get('/api/health', async () => ({ status: 'ok' }));
 
   registerOAuthMetadata(app, config);
+  registerOAuthRoutes(app, null);
 
   return app;
 }
