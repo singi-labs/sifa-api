@@ -11,6 +11,7 @@ import { registerProfileRoutes } from './routes/profile.js';
 import { registerProfileWriteRoutes } from './routes/profile-write.js';
 import { registerImportRoutes } from './routes/import.js';
 import { registerFollowRoutes } from './routes/follow.js';
+import { registerSearchRoutes } from './routes/search.js';
 
 export async function buildServer(config: Env) {
   const app = Fastify({
@@ -34,6 +35,7 @@ export async function buildServer(config: Env) {
   registerProfileWriteRoutes(app, db, null);
   registerImportRoutes(app, null);
   registerFollowRoutes(app, db, null);
+  registerSearchRoutes(app, db);
 
   return app;
 }
