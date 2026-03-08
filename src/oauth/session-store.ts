@@ -22,7 +22,9 @@ export class DbSessionStore implements NodeSavedSessionStore {
       .limit(1);
 
     if (rows.length === 0) return undefined;
-    return rows[0]!.tokenSet as unknown as NodeSavedSession;
+    const row = rows[0];
+    if (!row) return undefined;
+    return row.tokenSet as unknown as NodeSavedSession;
   }
 
   async set(key: string, val: NodeSavedSession): Promise<void> {
