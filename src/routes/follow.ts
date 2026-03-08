@@ -6,6 +6,7 @@ import { connections } from '../db/schema/index.js';
 import { and, eq } from 'drizzle-orm';
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
+import type { AuthenticatedRequest } from '../middleware/types.js';
 
 const followSchema = z.object({
   subjectDid: z.string().startsWith('did:'),
@@ -25,14 +26,13 @@ export function registerFollowRoutes(
       return reply.status(400).send({ error: 'InvalidRequest', issues: body.error.issues });
     }
 
-    const did = (request as any).did as string;
+    const { did, session } = request as AuthenticatedRequest;
 
     if (did === body.data.subjectDid) {
       return reply.status(400).send({ error: 'InvalidRequest', message: 'Cannot follow yourself' });
     }
 
     const rkey = generateTid();
-    const session = (request as any).session;
 
     // Write to user's PDS
     await writeToUserPds(session, did, [
@@ -62,9 +62,8 @@ export function registerFollowRoutes(
     '/api/follow/:did',
     { preHandler: requireAuth },
     async (request, reply) => {
-      const followerDid = (request as any).did as string;
+      const { did: followerDid, session } = request as AuthenticatedRequest;
       const { did: subjectDid } = request.params;
-      const session = (request as any).session;
 
       // Look up the rkey from the connections table
       const [row] = await db

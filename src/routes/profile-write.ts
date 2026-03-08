@@ -4,6 +4,7 @@ import type { Database } from '../db/index.js';
 import { profileSelfSchema, positionSchema, educationSchema, skillSchema } from './schemas.js';
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
+import type { AuthenticatedRequest } from '../middleware/types.js';
 
 export function registerProfileWriteRoutes(
   app: FastifyInstance,
@@ -19,8 +20,7 @@ export function registerProfileWriteRoutes(
       return reply.status(400).send({ error: 'ValidationError', issues: parsed.error.issues });
     }
 
-    const did = (request as any).did as string;
-    const session = (request as any).session;
+    const { did, session } = request as AuthenticatedRequest;
     const record: Record<string, unknown> = {
       createdAt: new Date().toISOString(),
       ...parsed.data,
@@ -45,8 +45,7 @@ export function registerProfileWriteRoutes(
       return reply.status(400).send({ error: 'ValidationError', issues: parsed.error.issues });
     }
 
-    const did = (request as any).did as string;
-    const session = (request as any).session;
+    const { did, session } = request as AuthenticatedRequest;
     const rkey = generateTid();
     const record: Record<string, unknown> = {
       createdAt: new Date().toISOString(),
@@ -70,8 +69,7 @@ export function registerProfileWriteRoutes(
         return reply.status(400).send({ error: 'ValidationError', issues: parsed.error.issues });
       }
 
-      const did = (request as any).did as string;
-      const session = (request as any).session;
+      const { did, session } = request as AuthenticatedRequest;
       const { rkey } = request.params;
       const record: Record<string, unknown> = {
         createdAt: new Date().toISOString(),
@@ -91,8 +89,7 @@ export function registerProfileWriteRoutes(
     '/api/profile/position/:rkey',
     { preHandler: requireAuth },
     async (request, reply) => {
-      const did = (request as any).did as string;
-      const session = (request as any).session;
+      const { did, session } = request as AuthenticatedRequest;
       const { rkey } = request.params;
 
       await writeToUserPds(session, did, [
@@ -110,8 +107,7 @@ export function registerProfileWriteRoutes(
       return reply.status(400).send({ error: 'ValidationError', issues: parsed.error.issues });
     }
 
-    const did = (request as any).did as string;
-    const session = (request as any).session;
+    const { did, session } = request as AuthenticatedRequest;
     const rkey = generateTid();
     const record: Record<string, unknown> = {
       createdAt: new Date().toISOString(),
@@ -135,8 +131,7 @@ export function registerProfileWriteRoutes(
         return reply.status(400).send({ error: 'ValidationError', issues: parsed.error.issues });
       }
 
-      const did = (request as any).did as string;
-      const session = (request as any).session;
+      const { did, session } = request as AuthenticatedRequest;
       const { rkey } = request.params;
       const record: Record<string, unknown> = {
         createdAt: new Date().toISOString(),
@@ -156,8 +151,7 @@ export function registerProfileWriteRoutes(
     '/api/profile/education/:rkey',
     { preHandler: requireAuth },
     async (request, reply) => {
-      const did = (request as any).did as string;
-      const session = (request as any).session;
+      const { did, session } = request as AuthenticatedRequest;
       const { rkey } = request.params;
 
       await writeToUserPds(session, did, [
@@ -175,8 +169,7 @@ export function registerProfileWriteRoutes(
       return reply.status(400).send({ error: 'ValidationError', issues: parsed.error.issues });
     }
 
-    const did = (request as any).did as string;
-    const session = (request as any).session;
+    const { did, session } = request as AuthenticatedRequest;
     const rkey = generateTid();
     const record: Record<string, unknown> = {
       createdAt: new Date().toISOString(),
@@ -200,8 +193,7 @@ export function registerProfileWriteRoutes(
         return reply.status(400).send({ error: 'ValidationError', issues: parsed.error.issues });
       }
 
-      const did = (request as any).did as string;
-      const session = (request as any).session;
+      const { did, session } = request as AuthenticatedRequest;
       const { rkey } = request.params;
       const record: Record<string, unknown> = {
         createdAt: new Date().toISOString(),
@@ -221,8 +213,7 @@ export function registerProfileWriteRoutes(
     '/api/profile/skill/:rkey',
     { preHandler: requireAuth },
     async (request, reply) => {
-      const did = (request as any).did as string;
-      const session = (request as any).session;
+      const { did, session } = request as AuthenticatedRequest;
       const { rkey } = request.params;
 
       await writeToUserPds(session, did, [

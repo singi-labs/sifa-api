@@ -5,6 +5,8 @@ import { z } from 'zod';
 import { profileSelfSchema, positionSchema, educationSchema, skillSchema } from './schemas.js';
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
+import type { AuthenticatedRequest } from '../middleware/types.js';
+import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
 
 const importPayloadSchema = z.object({
   profile: profileSelfSchema.optional(),
@@ -12,6 +14,61 @@ const importPayloadSchema = z.object({
   education: z.array(educationSchema).max(50).default([]),
   skills: z.array(skillSchema).max(200).default([]),
 });
+
+type ImportProfile = z.infer<typeof profileSelfSchema>;
+type ImportPosition = z.infer<typeof positionSchema>;
+type ImportEducation = z.infer<typeof educationSchema>;
+type ImportSkill = z.infer<typeof skillSchema>;
+
+function sanitizeProfile(profile: ImportProfile): ImportProfile {
+  return {
+    ...profile,
+    headline: sanitizeOptional(profile.headline),
+    about: sanitizeOptional(profile.about),
+    industry: sanitizeOptional(profile.industry),
+    location: profile.location
+      ? {
+          country: sanitize(profile.location.country),
+          region: sanitizeOptional(profile.location.region),
+          city: sanitizeOptional(profile.location.city),
+        }
+      : undefined,
+  };
+}
+
+function sanitizePosition(pos: ImportPosition): ImportPosition {
+  return {
+    ...pos,
+    companyName: sanitize(pos.companyName),
+    title: sanitize(pos.title),
+    description: sanitizeOptional(pos.description),
+    location: pos.location
+      ? {
+          country: sanitize(pos.location.country),
+          region: sanitizeOptional(pos.location.region),
+          city: sanitizeOptional(pos.location.city),
+        }
+      : undefined,
+  };
+}
+
+function sanitizeEducation(edu: ImportEducation): ImportEducation {
+  return {
+    ...edu,
+    institution: sanitize(edu.institution),
+    degree: sanitizeOptional(edu.degree),
+    fieldOfStudy: sanitizeOptional(edu.fieldOfStudy),
+    description: sanitizeOptional(edu.description),
+  };
+}
+
+function sanitizeSkill(skill: ImportSkill): ImportSkill {
+  return {
+    ...skill,
+    skillName: sanitize(skill.skillName),
+    category: sanitizeOptional(skill.category),
+  };
+}
 
 export function registerImportRoutes(
   app: FastifyInstance,
@@ -27,16 +84,15 @@ export function registerImportRoutes(
     }
 
     const { profile, positions, education, skills } = body.data;
-    const did = (request as any).did as string;
-    const session = (request as any).session;
+    const { did, session } = request as AuthenticatedRequest;
 
-    // Build write operations
+    // Build write operations with sanitized data
     const writes: ReturnType<typeof buildApplyWritesOp>[] = [];
 
     if (profile) {
       writes.push(
         buildApplyWritesOp('create', 'id.sifa.profile.self', 'self', {
-          ...profile,
+          ...sanitizeProfile(profile),
           createdAt: new Date().toISOString(),
         }),
       );
@@ -45,7 +101,7 @@ export function registerImportRoutes(
     for (const pos of positions) {
       writes.push(
         buildApplyWritesOp('create', 'id.sifa.profile.position', generateTid(), {
-          ...pos,
+          ...sanitizePosition(pos),
           createdAt: new Date().toISOString(),
         }),
       );
@@ -54,7 +110,7 @@ export function registerImportRoutes(
     for (const edu of education) {
       writes.push(
         buildApplyWritesOp('create', 'id.sifa.profile.education', generateTid(), {
-          ...edu,
+          ...sanitizeEducation(edu),
           createdAt: new Date().toISOString(),
         }),
       );
@@ -63,7 +119,7 @@ export function registerImportRoutes(
     for (const skill of skills) {
       writes.push(
         buildApplyWritesOp('create', 'id.sifa.profile.skill', generateTid(), {
-          ...skill,
+          ...sanitizeSkill(skill),
           createdAt: new Date().toISOString(),
         }),
       );

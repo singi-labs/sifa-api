@@ -3,6 +3,7 @@ import { skills } from '../../db/schema/index.js';
 import { and, eq } from 'drizzle-orm';
 import type { JetstreamEvent } from '../types.js';
 import { logger } from '../../logger.js';
+import { sanitize, sanitizeOptional } from '../../lib/sanitize.js';
 
 export function createSkillIndexer(db: Database) {
   return async (event: JetstreamEvent) => {
@@ -24,16 +25,16 @@ export function createSkillIndexer(db: Database) {
       .values({
         did,
         rkey,
-        skillName: record.skillName as string,
-        category: (record.category as string) ?? null,
+        skillName: sanitize(record.skillName as string),
+        category: sanitizeOptional(record.category as string | undefined) ?? null,
         createdAt: new Date(record.createdAt as string),
         indexedAt: new Date(),
       })
       .onConflictDoUpdate({
         target: [skills.did, skills.rkey],
         set: {
-          skillName: record.skillName as string,
-          category: (record.category as string) ?? null,
+          skillName: sanitize(record.skillName as string),
+          category: sanitizeOptional(record.category as string | undefined) ?? null,
           indexedAt: new Date(),
         },
       });

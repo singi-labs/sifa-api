@@ -1,5 +1,6 @@
 import { TID } from '@atproto/common-web';
-import type { Agent } from '@atproto/api';
+import { Agent } from '@atproto/api';
+import type { OAuthSession } from '@atproto/oauth-client';
 
 export function generateTid(): string {
   return TID.next().toString();
@@ -52,7 +53,8 @@ export function buildApplyWritesOp(
   };
 }
 
-export async function writeToUserPds(agent: Agent, repo: string, writes: ApplyWritesOp[]) {
+export async function writeToUserPds(session: OAuthSession, repo: string, writes: ApplyWritesOp[]) {
+  const agent = new Agent(session);
   return agent.com.atproto.repo.applyWrites({
     repo,
     writes,

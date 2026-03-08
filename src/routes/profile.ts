@@ -5,6 +5,7 @@ import { profiles, positions, education, skills, connections } from '../db/schem
 import { resolveSessionDid } from '../middleware/auth.js';
 
 export async function getMutualFollowCount(db: Database, did: string): Promise<number> {
+  // Raw SQL required: Drizzle ORM doesn't support self-join aggregate subqueries for mutual follow counting
   const result = await db.execute(sql`
     SELECT COUNT(*)::int AS count FROM connections a
     JOIN connections b ON a.subject_did = b.follower_did AND a.follower_did = b.subject_did

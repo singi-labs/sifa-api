@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { buildApplyWritesOp, generateTid } from '../../src/services/pds-writer.js';
+import {
+  buildApplyWritesOp,
+  generateTid,
+  type ApplyWritesCreate,
+  type ApplyWritesUpdate,
+} from '../../src/services/pds-writer.js';
 
 describe('PDS writer', () => {
   it('builds create operation', () => {
@@ -9,8 +14,8 @@ describe('PDS writer', () => {
     expect(op.$type).toBe('com.atproto.repo.applyWrites#create');
     expect(op.collection).toBe('id.sifa.profile.position');
     expect(op.rkey).toBe('3abc');
-    expect((op as any).value).toBeDefined();
-    expect((op as any).value.title).toBe('Engineer');
+    expect((op as ApplyWritesCreate).value).toBeDefined();
+    expect((op as ApplyWritesCreate).value.title).toBe('Engineer');
   });
 
   it('builds update operation', () => {
@@ -20,8 +25,8 @@ describe('PDS writer', () => {
     expect(op.$type).toBe('com.atproto.repo.applyWrites#update');
     expect(op.collection).toBe('id.sifa.profile.position');
     expect(op.rkey).toBe('3abc');
-    expect((op as any).value).toBeDefined();
-    expect((op as any).value.title).toBe('Senior Engineer');
+    expect((op as ApplyWritesUpdate).value).toBeDefined();
+    expect((op as ApplyWritesUpdate).value.title).toBe('Senior Engineer');
   });
 
   it('builds delete operation', () => {
@@ -29,7 +34,7 @@ describe('PDS writer', () => {
     expect(op.$type).toBe('com.atproto.repo.applyWrites#delete');
     expect(op.collection).toBe('id.sifa.profile.position');
     expect(op.rkey).toBe('3abc');
-    expect((op as any).value).toBeUndefined();
+    expect('value' in op).toBe(false);
   });
 
   it('generates unique TIDs', () => {
@@ -44,6 +49,6 @@ describe('PDS writer', () => {
     const op = buildApplyWritesOp('create', 'id.sifa.profile.skill', '3xyz', {
       name: 'TypeScript',
     });
-    expect((op as any).value.$type).toBe('id.sifa.profile.skill');
+    expect((op as ApplyWritesCreate).value.$type).toBe('id.sifa.profile.skill');
   });
 });

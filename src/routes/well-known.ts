@@ -15,6 +15,7 @@ export function registerWellKnownRoutes(
 
     // Check PostgreSQL
     try {
+      // Raw SQL required: health check ping has no Drizzle ORM equivalent
       await db.execute(sql`SELECT 1`);
       components['postgresql'] = { status: 'ok' };
     } catch (err) {

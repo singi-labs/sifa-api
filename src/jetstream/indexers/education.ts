@@ -3,6 +3,7 @@ import { education } from '../../db/schema/index.js';
 import { and, eq } from 'drizzle-orm';
 import type { JetstreamEvent } from '../types.js';
 import { logger } from '../../logger.js';
+import { sanitize, sanitizeOptional } from '../../lib/sanitize.js';
 
 export function createEducationIndexer(db: Database) {
   return async (event: JetstreamEvent) => {
@@ -24,11 +25,11 @@ export function createEducationIndexer(db: Database) {
       .values({
         did,
         rkey,
-        institution: record.institution as string,
+        institution: sanitize(record.institution as string),
         institutionDid: (record.institutionDid as string) ?? null,
-        degree: (record.degree as string) ?? null,
-        fieldOfStudy: (record.fieldOfStudy as string) ?? null,
-        description: (record.description as string) ?? null,
+        degree: sanitizeOptional(record.degree as string | undefined) ?? null,
+        fieldOfStudy: sanitizeOptional(record.fieldOfStudy as string | undefined) ?? null,
+        description: sanitizeOptional(record.description as string | undefined) ?? null,
         startDate: (record.startDate as string) ?? null,
         endDate: (record.endDate as string) ?? null,
         createdAt: new Date(record.createdAt as string),
@@ -37,11 +38,11 @@ export function createEducationIndexer(db: Database) {
       .onConflictDoUpdate({
         target: [education.did, education.rkey],
         set: {
-          institution: record.institution as string,
+          institution: sanitize(record.institution as string),
           institutionDid: (record.institutionDid as string) ?? null,
-          degree: (record.degree as string) ?? null,
-          fieldOfStudy: (record.fieldOfStudy as string) ?? null,
-          description: (record.description as string) ?? null,
+          degree: sanitizeOptional(record.degree as string | undefined) ?? null,
+          fieldOfStudy: sanitizeOptional(record.fieldOfStudy as string | undefined) ?? null,
+          description: sanitizeOptional(record.description as string | undefined) ?? null,
           startDate: (record.startDate as string) ?? null,
           endDate: (record.endDate as string) ?? null,
           indexedAt: new Date(),

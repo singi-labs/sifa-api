@@ -14,6 +14,7 @@ export function registerSearchRoutes(app: FastifyInstance, db: Database) {
     const limitNum = Math.min(parseInt(limit, 10) || 20, 100);
     const offsetNum = parseInt(offset, 10) || 0;
 
+    // Raw SQL required: Drizzle ORM doesn't support full-text search with to_tsvector/plainto_tsquery
     const results = await db.execute(sql`
       SELECT did, handle, headline, about,
         ts_rank(

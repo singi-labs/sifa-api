@@ -3,6 +3,13 @@ import { profiles } from '../../db/schema/index.js';
 import { eq } from 'drizzle-orm';
 import type { JetstreamEvent } from '../types.js';
 import { logger } from '../../logger.js';
+import { sanitizeOptional } from '../../lib/sanitize.js';
+
+interface RecordLocation {
+  country?: string;
+  region?: string;
+  city?: string;
+}
 
 export function createProfileIndexer(db: Database) {
   return async (event: JetstreamEvent) => {
@@ -19,17 +26,19 @@ export function createProfileIndexer(db: Database) {
 
     if (!record) return;
 
+    const location = record.location as RecordLocation | undefined;
+
     await db
       .insert(profiles)
       .values({
         did,
         handle: '',
-        headline: (record.headline as string) ?? null,
-        about: (record.about as string) ?? null,
-        industry: (record.industry as string) ?? null,
-        locationCountry: (record.location as any)?.country ?? null,
-        locationRegion: (record.location as any)?.region ?? null,
-        locationCity: (record.location as any)?.city ?? null,
+        headline: sanitizeOptional(record.headline as string | undefined) ?? null,
+        about: sanitizeOptional(record.about as string | undefined) ?? null,
+        industry: sanitizeOptional(record.industry as string | undefined) ?? null,
+        locationCountry: sanitizeOptional(location?.country) ?? null,
+        locationRegion: sanitizeOptional(location?.region) ?? null,
+        locationCity: sanitizeOptional(location?.city) ?? null,
         website: (record.website as string) ?? null,
         openTo: (record.openTo as string[]) ?? null,
         preferredWorkplace: (record.preferredWorkplace as string[]) ?? null,
@@ -41,12 +50,12 @@ export function createProfileIndexer(db: Database) {
       .onConflictDoUpdate({
         target: profiles.did,
         set: {
-          headline: (record.headline as string) ?? null,
-          about: (record.about as string) ?? null,
-          industry: (record.industry as string) ?? null,
-          locationCountry: (record.location as any)?.country ?? null,
-          locationRegion: (record.location as any)?.region ?? null,
-          locationCity: (record.location as any)?.city ?? null,
+          headline: sanitizeOptional(record.headline as string | undefined) ?? null,
+          about: sanitizeOptional(record.about as string | undefined) ?? null,
+          industry: sanitizeOptional(record.industry as string | undefined) ?? null,
+          locationCountry: sanitizeOptional(location?.country) ?? null,
+          locationRegion: sanitizeOptional(location?.region) ?? null,
+          locationCity: sanitizeOptional(location?.city) ?? null,
           website: (record.website as string) ?? null,
           openTo: (record.openTo as string[]) ?? null,
           preferredWorkplace: (record.preferredWorkplace as string[]) ?? null,

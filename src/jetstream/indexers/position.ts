@@ -3,6 +3,13 @@ import { positions } from '../../db/schema/index.js';
 import { and, eq } from 'drizzle-orm';
 import type { JetstreamEvent } from '../types.js';
 import { logger } from '../../logger.js';
+import { sanitize, sanitizeOptional } from '../../lib/sanitize.js';
+
+interface RecordLocation {
+  country?: string;
+  region?: string;
+  city?: string;
+}
 
 export function createPositionIndexer(db: Database) {
   return async (event: JetstreamEvent) => {
@@ -19,20 +26,22 @@ export function createPositionIndexer(db: Database) {
 
     if (!record) return;
 
+    const location = record.location as RecordLocation | undefined;
+
     await db
       .insert(positions)
       .values({
         did,
         rkey,
-        companyName: record.companyName as string,
+        companyName: sanitize(record.companyName as string),
         companyDid: (record.companyDid as string) ?? null,
-        title: record.title as string,
-        description: (record.description as string) ?? null,
+        title: sanitize(record.title as string),
+        description: sanitizeOptional(record.description as string | undefined) ?? null,
         employmentType: (record.employmentType as string) ?? null,
         workplaceType: (record.workplaceType as string) ?? null,
-        locationCountry: (record.location as any)?.country ?? null,
-        locationRegion: (record.location as any)?.region ?? null,
-        locationCity: (record.location as any)?.city ?? null,
+        locationCountry: sanitizeOptional(location?.country) ?? null,
+        locationRegion: sanitizeOptional(location?.region) ?? null,
+        locationCity: sanitizeOptional(location?.city) ?? null,
         startDate: record.startDate as string,
         endDate: (record.endDate as string) ?? null,
         current: (record.current as boolean) ?? false,
@@ -42,15 +51,15 @@ export function createPositionIndexer(db: Database) {
       .onConflictDoUpdate({
         target: [positions.did, positions.rkey],
         set: {
-          companyName: record.companyName as string,
+          companyName: sanitize(record.companyName as string),
           companyDid: (record.companyDid as string) ?? null,
-          title: record.title as string,
-          description: (record.description as string) ?? null,
+          title: sanitize(record.title as string),
+          description: sanitizeOptional(record.description as string | undefined) ?? null,
           employmentType: (record.employmentType as string) ?? null,
           workplaceType: (record.workplaceType as string) ?? null,
-          locationCountry: (record.location as any)?.country ?? null,
-          locationRegion: (record.location as any)?.region ?? null,
-          locationCity: (record.location as any)?.city ?? null,
+          locationCountry: sanitizeOptional(location?.country) ?? null,
+          locationRegion: sanitizeOptional(location?.region) ?? null,
+          locationCity: sanitizeOptional(location?.city) ?? null,
           startDate: record.startDate as string,
           endDate: (record.endDate as string) ?? null,
           current: (record.current as boolean) ?? false,

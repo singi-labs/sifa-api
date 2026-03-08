@@ -3,6 +3,7 @@ import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { eq, and, gt } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
 import { sessions } from '../db/schema/index.js';
+import type { AuthenticatedRequest } from './types.js';
 
 /**
  * Resolves a session cookie value to a DID by looking up the sessions table.
@@ -53,8 +54,8 @@ export function createAuthMiddleware(oauthClient: NodeOAuthClient | null, db: Da
 
     try {
       const session = await oauthClient.restore(did);
-      (request as any).session = session;
-      (request as any).did = session.did;
+      (request as AuthenticatedRequest).session = session;
+      (request as AuthenticatedRequest).did = session.did;
     } catch {
       reply.clearCookie('session', { path: '/' });
       return reply.status(401).send({ error: 'SessionExpired', message: 'Please sign in again' });
