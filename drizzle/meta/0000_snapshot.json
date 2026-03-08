@@ -82,12 +82,8 @@
           "name": "education_did_profiles_did_fk",
           "tableFrom": "education",
           "tableTo": "profiles",
-          "columnsFrom": [
-            "did"
-          ],
-          "columnsTo": [
-            "did"
-          ],
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -95,10 +91,7 @@
       "compositePrimaryKeys": {
         "education_did_rkey_pk": {
           "name": "education_did_rkey_pk",
-          "columns": [
-            "did",
-            "rkey"
-          ]
+          "columns": ["did", "rkey"]
         }
       },
       "uniqueConstraints": {},
@@ -215,12 +208,8 @@
           "name": "positions_did_profiles_did_fk",
           "tableFrom": "positions",
           "tableTo": "profiles",
-          "columnsFrom": [
-            "did"
-          ],
-          "columnsTo": [
-            "did"
-          ],
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -228,10 +217,7 @@
       "compositePrimaryKeys": {
         "positions_did_rkey_pk": {
           "name": "positions_did_rkey_pk",
-          "columns": [
-            "did",
-            "rkey"
-          ]
+          "columns": ["did", "rkey"]
         }
       },
       "uniqueConstraints": {},
@@ -408,12 +394,8 @@
           "name": "skills_did_profiles_did_fk",
           "tableFrom": "skills",
           "tableTo": "profiles",
-          "columnsFrom": [
-            "did"
-          ],
-          "columnsTo": [
-            "did"
-          ],
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -421,10 +403,7 @@
       "compositePrimaryKeys": {
         "skills_did_rkey_pk": {
           "name": "skills_did_rkey_pk",
-          "columns": [
-            "did",
-            "rkey"
-          ]
+          "columns": ["did", "rkey"]
         }
       },
       "uniqueConstraints": {},

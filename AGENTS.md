@@ -9,17 +9,17 @@ The AppView backend for Sifa -- a decentralized professional identity and career
 
 ## Tech Stack
 
-| Component | Technology |
-|-----------|-----------|
-| Runtime | Node.js 25 / TypeScript (strict) |
-| Framework | Fastify 5 |
-| Protocol | @atproto/api, @atproto/oauth-client-node, Jetstream (WebSocket) |
-| Database | PostgreSQL 17 (Drizzle ORM, Drizzle Kit migrations) |
-| Cache | Valkey 8 |
-| Testing | Vitest + Supertest |
-| Logging | Pino (structured) |
-| Monitoring | GlitchTip (Sentry SDK-compatible) |
-| Security | Helmet + Zod + DOMPurify + rate limiting |
+| Component  | Technology                                                      |
+| ---------- | --------------------------------------------------------------- |
+| Runtime    | Node.js 25 / TypeScript (strict)                                |
+| Framework  | Fastify 5                                                       |
+| Protocol   | @atproto/api, @atproto/oauth-client-node, Jetstream (WebSocket) |
+| Database   | PostgreSQL 17 (Drizzle ORM, Drizzle Kit migrations)             |
+| Cache      | Valkey 8                                                        |
+| Testing    | Vitest + Supertest                                              |
+| Logging    | Pino (structured)                                               |
+| Monitoring | GlitchTip (Sentry SDK-compatible)                               |
+| Security   | Helmet + Zod + DOMPurify + rate limiting                        |
 
 ## What This Repo Does
 

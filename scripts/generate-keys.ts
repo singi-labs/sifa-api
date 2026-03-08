@@ -13,7 +13,10 @@ async function generateKeys() {
   };
 
   writeFileSync('./keys/jwks.json', JSON.stringify(jwks, null, 2));
-  writeFileSync('./keys/private-key.json', JSON.stringify({ ...privateJwk, kid, use: 'sig', alg: 'ES256' }, null, 2));
+  writeFileSync(
+    './keys/private-key.json',
+    JSON.stringify({ ...privateJwk, kid, use: 'sig', alg: 'ES256' }, null, 2),
+  );
 
   console.log('Keys generated in ./keys/');
 }
