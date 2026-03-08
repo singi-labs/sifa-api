@@ -4,6 +4,7 @@ import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
 import type { Env } from './config.js';
+import { registerOAuthMetadata } from './oauth/metadata.js';
 
 export async function buildServer(config: Env) {
   const app = Fastify({
@@ -18,6 +19,8 @@ export async function buildServer(config: Env) {
   await app.register(rateLimit, { max: 60, timeWindow: '1 minute' });
 
   app.get('/api/health', async () => ({ status: 'ok' }));
+
+  registerOAuthMetadata(app, config);
 
   return app;
 }
