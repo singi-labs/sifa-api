@@ -10,6 +10,7 @@ import { registerOAuthRoutes } from './oauth/routes.js';
 import { registerProfileRoutes } from './routes/profile.js';
 import { registerProfileWriteRoutes } from './routes/profile-write.js';
 import { registerImportRoutes } from './routes/import.js';
+import { registerFollowRoutes } from './routes/follow.js';
 
 export async function buildServer(config: Env) {
   const app = Fastify({
@@ -32,6 +33,7 @@ export async function buildServer(config: Env) {
   registerProfileRoutes(app, db);
   registerProfileWriteRoutes(app, db, null);
   registerImportRoutes(app, null);
+  registerFollowRoutes(app, db, null);
 
   return app;
 }
