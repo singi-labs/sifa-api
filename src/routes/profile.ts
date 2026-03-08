@@ -1,7 +1,32 @@
 import type { FastifyInstance } from 'fastify';
-import { eq, and, count } from 'drizzle-orm';
+import { eq, and, count, sql } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
 import { profiles, positions, education, skills, connections } from '../db/schema/index.js';
+
+export async function getMutualFollowCount(db: Database, did: string): Promise<number> {
+  const result = await db.execute(sql`
+    SELECT COUNT(*)::int AS count FROM connections a
+    JOIN connections b ON a.subject_did = b.follower_did AND a.follower_did = b.subject_did
+    WHERE a.follower_did = ${did} AND a.source = 'sifa' AND b.source = 'sifa'
+  `);
+  return (result.rows[0] as { count: number } | undefined)?.count ?? 0;
+}
+
+export async function checkViewerRelationship(db: Database, viewerDid: string, profileDid: string) {
+  const [viewerFollowsProfile, profileFollowsViewer] = await Promise.all([
+    db.select({ value: count() }).from(connections).where(
+      and(eq(connections.followerDid, viewerDid), eq(connections.subjectDid, profileDid), eq(connections.source, 'sifa')),
+    ),
+    db.select({ value: count() }).from(connections).where(
+      and(eq(connections.followerDid, profileDid), eq(connections.subjectDid, viewerDid), eq(connections.source, 'sifa')),
+    ),
+  ]);
+
+  const isFollowing = (viewerFollowsProfile[0]?.value ?? 0) > 0;
+  const isMutual = isFollowing && (profileFollowsViewer[0]?.value ?? 0) > 0;
+
+  return { isFollowing, isConnection: isMutual };
+}
 
 export function registerProfileRoutes(app: FastifyInstance, db: Database) {
   app.get<{ Params: { handleOrDid: string } }>(
@@ -26,7 +51,9 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         db.select().from(skills).where(eq(skills.did, profile.did)),
       ]);
 
-      const [followersResult, followingResult] = await Promise.all([
+      const viewerDid = request.cookies?.session;
+
+      const [followersResult, followingResult, connectionsCountResult, viewerRelationship] = await Promise.all([
         db
           .select({ value: count() })
           .from(connections)
@@ -35,6 +62,10 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
           .select({ value: count() })
           .from(connections)
           .where(and(eq(connections.followerDid, profile.did), eq(connections.source, 'sifa'))),
+        getMutualFollowCount(db, profile.did),
+        viewerDid && viewerDid !== profile.did
+          ? checkViewerRelationship(db, viewerDid, profile.did)
+          : Promise.resolve(undefined),
       ]);
 
       const followersCount = followersResult[0]?.value ?? 0;
@@ -86,7 +117,8 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         })),
         followersCount,
         followingCount,
-        connectionsCount: 0, // Placeholder for mutual sifa follows
+        connectionsCount: connectionsCountResult,
+        ...(viewerRelationship ? { isFollowing: viewerRelationship.isFollowing, isConnection: viewerRelationship.isConnection } : {}),
       });
     },
   );
