@@ -54,6 +54,7 @@ export function createFollowIndexer(db: Database) {
         followerDid: did,
         subjectDid,
         source: 'sifa',
+        rkey: commit.rkey,
         createdAt: new Date(record.createdAt as string),
         indexedAt: new Date(),
       })

@@ -1,12 +1,16 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { randomUUID } from 'node:crypto';
+import { eq, and, gt } from 'drizzle-orm';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
+import type { Database } from '../db/index.js';
+import { sessions } from '../db/schema/index.js';
 
 const loginSchema = z.object({
   handle: z.string().min(1).max(253),
 });
 
-export function registerOAuthRoutes(app: FastifyInstance, oauthClient: NodeOAuthClient | null) {
+export function registerOAuthRoutes(app: FastifyInstance, db: Database, oauthClient: NodeOAuthClient | null) {
   // Login: initiate OAuth flow
   app.post('/oauth/login', async (request, reply) => {
     const body = loginSchema.safeParse(request.body);
@@ -39,8 +43,20 @@ export function registerOAuthRoutes(app: FastifyInstance, oauthClient: NodeOAuth
     const { session } = await oauthClient.callback(params);
     const did = session.did;
 
-    // Set session cookie
-    reply.setCookie('session', did, {
+    // Create a secure session ID (not the DID)
+    const sessionId = randomUUID();
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000); // 180 days
+
+    await db.insert(sessions).values({
+      id: sessionId,
+      did,
+      createdAt: now,
+      expiresAt,
+    });
+
+    // Set session cookie to the random sessionId (NOT the DID)
+    reply.setCookie('session', sessionId, {
       httpOnly: true,
       secure: true,
       sameSite: 'lax',
@@ -52,15 +68,19 @@ export function registerOAuthRoutes(app: FastifyInstance, oauthClient: NodeOAuth
   });
 
   // Logout
-  app.post('/oauth/logout', async (_request, reply) => {
+  app.post('/oauth/logout', async (request, reply) => {
+    const sessionId = request.cookies?.session;
+    if (sessionId) {
+      await db.delete(sessions).where(eq(sessions.id, sessionId));
+    }
     reply.clearCookie('session', { path: '/' });
     return reply.send({ status: 'ok' });
   });
 
   // Session info
   app.get('/api/auth/session', async (request, reply) => {
-    const sessionDid = request.cookies.session;
-    if (!sessionDid) {
+    const sessionId = request.cookies?.session;
+    if (!sessionId) {
       return reply.status(401).send({ error: 'Unauthorized' });
     }
 
@@ -68,8 +88,20 @@ export function registerOAuthRoutes(app: FastifyInstance, oauthClient: NodeOAuth
       return reply.status(503).send({ error: 'Unavailable' });
     }
 
+    // Look up session from DB
+    const [row] = await db
+      .select({ did: sessions.did })
+      .from(sessions)
+      .where(and(eq(sessions.id, sessionId), gt(sessions.expiresAt, new Date())))
+      .limit(1);
+
+    if (!row) {
+      reply.clearCookie('session', { path: '/' });
+      return reply.status(401).send({ error: 'SessionExpired' });
+    }
+
     try {
-      const session = await oauthClient.restore(sessionDid);
+      const session = await oauthClient.restore(row.did);
       return reply.send({
         did: session.did,
         handle: session.handle,

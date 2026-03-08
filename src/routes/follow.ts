@@ -5,6 +5,7 @@ import type { Database } from '../db/index.js';
 import { connections } from '../db/schema/index.js';
 import { and, eq } from 'drizzle-orm';
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
+import { createAuthMiddleware } from '../middleware/auth.js';
 
 const followSchema = z.object({
   subjectDid: z.string().startsWith('did:'),
@@ -15,42 +16,38 @@ export function registerFollowRoutes(
   db: Database,
   oauthClient: NodeOAuthClient | null,
 ) {
-  // POST /api/follow -- create a follow relationship
-  app.post('/api/follow', async (request, reply) => {
-    const sessionDid = request.cookies?.session;
-    if (!sessionDid) {
-      return reply.status(401).send({ error: 'Unauthorized', message: 'Authentication required' });
-    }
+  const requireAuth = createAuthMiddleware(oauthClient, db);
 
+  // POST /api/follow -- create a follow relationship
+  app.post('/api/follow', { preHandler: requireAuth }, async (request, reply) => {
     const body = followSchema.safeParse(request.body);
     if (!body.success) {
       return reply.status(400).send({ error: 'InvalidRequest', issues: body.error.issues });
     }
 
-    if (sessionDid === body.data.subjectDid) {
+    const did = (request as any).did as string;
+
+    if (did === body.data.subjectDid) {
       return reply.status(400).send({ error: 'InvalidRequest', message: 'Cannot follow yourself' });
     }
 
-    if (!oauthClient) {
-      return reply.status(503).send({ error: 'Unavailable', message: 'OAuth client not available' });
-    }
-
     const rkey = generateTid();
+    const session = (request as any).session;
 
     // Write to user's PDS
-    const session = await oauthClient.restore(sessionDid);
-    await writeToUserPds(session, sessionDid, [
+    await writeToUserPds(session, did, [
       buildApplyWritesOp('create', 'id.sifa.graph.follow', rkey, {
         subject: body.data.subjectDid,
         createdAt: new Date().toISOString(),
       }),
     ]);
 
-    // Optimistically insert into connections table
+    // Optimistically insert into connections table (with rkey)
     await db.insert(connections).values({
-      followerDid: sessionDid,
+      followerDid: did,
       subjectDid: body.data.subjectDid,
       source: 'sifa',
+      rkey,
       createdAt: new Date(),
     }).onConflictDoNothing();
 
@@ -58,23 +55,35 @@ export function registerFollowRoutes(
   });
 
   // DELETE /api/follow/:did -- remove a follow relationship
-  app.delete<{ Params: { did: string } }>('/api/follow/:did', async (request, reply) => {
-    const sessionDid = request.cookies?.session;
-    if (!sessionDid) {
-      return reply.status(401).send({ error: 'Unauthorized', message: 'Authentication required' });
-    }
-
-    if (!oauthClient) {
-      return reply.status(503).send({ error: 'Unavailable', message: 'OAuth client not available' });
-    }
-
+  app.delete<{ Params: { did: string } }>('/api/follow/:did', { preHandler: requireAuth }, async (request, reply) => {
+    const followerDid = (request as any).did as string;
     const { did: subjectDid } = request.params;
+    const session = (request as any).session;
+
+    // Look up the rkey from the connections table
+    const [row] = await db
+      .select({ rkey: connections.rkey })
+      .from(connections)
+      .where(
+        and(
+          eq(connections.followerDid, followerDid),
+          eq(connections.subjectDid, subjectDid),
+          eq(connections.source, 'sifa'),
+        ),
+      )
+      .limit(1);
+
+    // Delete PDS record if we have the rkey
+    if (row?.rkey) {
+      await writeToUserPds(session, followerDid, [
+        buildApplyWritesOp('delete', 'id.sifa.graph.follow', row.rkey),
+      ]);
+    }
 
     // Remove from connections table
-    // The PDS record will be cleaned up by Jetstream indexer
     await db.delete(connections).where(
       and(
-        eq(connections.followerDid, sessionDid),
+        eq(connections.followerDid, followerDid),
         eq(connections.subjectDid, subjectDid),
         eq(connections.source, 'sifa'),
       ),

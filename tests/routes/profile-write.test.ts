@@ -152,7 +152,7 @@ describe('Profile write endpoints', () => {
       method: 'PUT',
       url: '/api/profile/self',
       payload: { headline: 'Test' },
-      cookies: { session: 'did:plc:fake' },
+      cookies: { session: 'test-session-id' },
     });
     expect(res.statusCode).toBe(503);
     expect(res.json().error).toBe('ServiceUnavailable');
@@ -163,7 +163,7 @@ describe('Profile write endpoints', () => {
       method: 'POST',
       url: '/api/profile/position',
       payload: { companyName: 'Acme', title: 'Eng', startDate: '2020-01' },
-      cookies: { session: 'did:plc:fake' },
+      cookies: { session: 'test-session-id' },
     });
     expect(res.statusCode).toBe(503);
   });

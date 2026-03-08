@@ -10,23 +10,7 @@ export function registerProfileWriteRoutes(
   db: Database,
   oauthClient: NodeOAuthClient | null,
 ) {
-  // Auth preHandler: returns 401 if no session cookie, 503 if no OAuth client
-  const requireAuth = async (request: any, reply: any) => {
-    const sessionDid = request.cookies?.session;
-    if (!sessionDid) {
-      return reply.status(401).send({ error: 'Unauthorized', message: 'Authentication required' });
-    }
-
-    if (!oauthClient) {
-      return reply
-        .status(503)
-        .send({ error: 'ServiceUnavailable', message: 'OAuth client not available' });
-    }
-
-    // Delegate to the real auth middleware
-    const middleware = createAuthMiddleware(oauthClient);
-    return middleware(request, reply);
-  };
+  const requireAuth = createAuthMiddleware(oauthClient, db);
 
   // PUT /api/profile/self -- update the user's profile summary
   app.put('/api/profile/self', { preHandler: requireAuth }, async (request, reply) => {

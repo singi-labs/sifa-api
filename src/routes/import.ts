@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
+import type { Database } from '../db/index.js';
 import { z } from 'zod';
 import { profileSelfSchema, positionSchema, educationSchema, skillSchema } from './schemas.js';
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
@@ -14,24 +15,10 @@ const importPayloadSchema = z.object({
 
 export function registerImportRoutes(
   app: FastifyInstance,
+  db: Database,
   oauthClient: NodeOAuthClient | null,
 ) {
-  // Auth preHandler: returns 401 if no session cookie, 503 if no OAuth client
-  const requireAuth = async (request: any, reply: any) => {
-    const sessionDid = request.cookies?.session;
-    if (!sessionDid) {
-      return reply.status(401).send({ error: 'Unauthorized', message: 'Authentication required' });
-    }
-
-    if (!oauthClient) {
-      return reply
-        .status(503)
-        .send({ error: 'ServiceUnavailable', message: 'OAuth client not available' });
-    }
-
-    const middleware = createAuthMiddleware(oauthClient);
-    return middleware(request, reply);
-  };
+  const requireAuth = createAuthMiddleware(oauthClient, db);
 
   app.post(
     '/api/import/linkedin/confirm',

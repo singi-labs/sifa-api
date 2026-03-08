@@ -49,7 +49,7 @@ describe('Import routes', () => {
       method: 'POST',
       url: '/api/import/linkedin/confirm',
       payload: { positions: [] },
-      cookies: { session: 'did:plc:fake' },
+      cookies: { session: 'test-session-id' },
     });
     expect(res.statusCode).toBe(503);
     expect(res.json().error).toBe('ServiceUnavailable');
@@ -60,7 +60,7 @@ describe('Import routes', () => {
       method: 'POST',
       url: '/api/import/linkedin/confirm',
       payload: {},
-      cookies: { session: 'did:plc:fake' },
+      cookies: { session: 'test-session-id' },
     });
     // 503 because no OAuth client -- but it passed validation
     expect(res.statusCode).toBe(503);
@@ -78,7 +78,7 @@ describe('Import routes', () => {
         education: [{ institution: 'MIT', degree: 'BSc', fieldOfStudy: 'CS' }],
         skills: [{ skillName: 'TypeScript' }, { skillName: 'Rust' }],
       },
-      cookies: { session: 'did:plc:fake' },
+      cookies: { session: 'test-session-id' },
     });
     // 503 because no OAuth client -- but it passed validation
     expect(res.statusCode).toBe(503);

@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { eq, and, count, sql } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
 import { profiles, positions, education, skills, connections } from '../db/schema/index.js';
+import { resolveSessionDid } from '../middleware/auth.js';
 
 export async function getMutualFollowCount(db: Database, did: string): Promise<number> {
   const result = await db.execute(sql`
@@ -51,7 +52,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         db.select().from(skills).where(eq(skills.did, profile.did)),
       ]);
 
-      const viewerDid = request.cookies?.session;
+      const viewerDid = await resolveSessionDid(db, request.cookies?.session);
 
       const [followersResult, followingResult, connectionsCountResult, viewerRelationship] = await Promise.all([
         db

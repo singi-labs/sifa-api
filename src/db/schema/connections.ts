@@ -4,6 +4,7 @@ export const connections = pgTable('connections', {
   followerDid: text('follower_did').notNull(),
   subjectDid: text('subject_did').notNull(),
   source: text('source').notNull(), // 'sifa', 'bluesky'
+  rkey: text('rkey'), // nullable - Bluesky imports don't have ATproto rkeys
   createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
   indexedAt: timestamp('indexed_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
