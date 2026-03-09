@@ -28,16 +28,16 @@ The AppView backend for the Sifa professional network. Handles AT Protocol OAuth
 
 ## Tech Stack
 
-| Component  | Technology                                              |
-| ---------- | ------------------------------------------------------- |
-| Runtime    | Node.js 25 / TypeScript (strict mode)                   |
-| Framework  | Fastify 5                                               |
-| Protocol   | @atproto/api, @atproto/oauth-client-node, Jetstream     |
-| Database   | PostgreSQL 17 (Drizzle ORM, Drizzle Kit migrations)     |
-| Cache      | Valkey 8 (via ioredis)                                  |
-| Validation | Zod                                                     |
-| Testing    | Vitest                                                  |
-| Logging    | Pino (structured)                                       |
+| Component  | Technology                                          |
+| ---------- | --------------------------------------------------- |
+| Runtime    | Node.js 25 / TypeScript (strict mode)               |
+| Framework  | Fastify 5                                           |
+| Protocol   | @atproto/api, @atproto/oauth-client-node, Jetstream |
+| Database   | PostgreSQL 17 (Drizzle ORM, Drizzle Kit migrations) |
+| Cache      | Valkey 8 (via ioredis)                              |
+| Validation | Zod                                                 |
+| Testing    | Vitest                                              |
+| Logging    | Pino (structured)                                   |
 
 ---
 
@@ -88,8 +88,8 @@ See [CONTRIBUTING.md](https://github.com/singi-labs/.github/blob/main/CONTRIBUTI
 
 ## Related Repositories
 
-| Repository                                                       | Description                              | License          |
-| ---------------------------------------------------------------- | ---------------------------------------- | ---------------- |
+| Repository                                                     | Description                              | License          |
+| -------------------------------------------------------------- | ---------------------------------------- | ---------------- |
 | [sifa-web](https://github.com/singi-labs/sifa-web)             | Frontend (Next.js, React, TailwindCSS)   | Source-available |
 | [sifa-lexicons](https://github.com/singi-labs/sifa-lexicons)   | AT Protocol professional profile schemas | MIT              |
 | [sifa-deploy](https://github.com/singi-labs/sifa-deploy)       | Docker Compose + Caddy deployment config | Source-available |
