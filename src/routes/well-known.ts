@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { Database } from '../db/index.js';
 import type { ValkeyClient } from '../cache/index.js';
 import { sql } from 'drizzle-orm';
+import { profiles } from '../db/schema/index.js';
 
 export function registerWellKnownRoutes(
   app: FastifyInstance,
@@ -56,5 +57,17 @@ export function registerWellKnownRoutes(
 
   app.get('/.well-known/atproto-did', async (_req, reply) => {
     return reply.type('text/plain').send(sifaDid);
+  });
+
+  app.get('/api/sitemap/profiles', async (_req, reply) => {
+    const rows = await db
+      .select({ handle: profiles.handle, updatedAt: profiles.updatedAt })
+      .from(profiles);
+
+    return reply.send(
+      rows
+        .filter((r) => r.handle)
+        .map((r) => ({ handle: r.handle, updatedAt: r.updatedAt.toISOString() })),
+    );
   });
 }
