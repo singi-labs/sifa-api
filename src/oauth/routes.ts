@@ -174,8 +174,40 @@ export function registerOAuthRoutes(
           .limit(1);
 
         if (!profile) {
-          // Profile not yet synced — return DID only, frontend handles gracefully
-          return reply.send({ did: row.did, handle: row.did });
+          // Profile not yet synced locally — resolve from Bluesky and trigger sync
+          const publicAgent = new Agent('https://public.api.bsky.app');
+          const bskyProfile = await publicAgent.getProfile({ actor: row.did });
+
+          // Fire-and-forget: persist for next request
+          const now = new Date();
+          void db
+            .insert(profiles)
+            .values({
+              did: row.did,
+              handle: bskyProfile.data.handle,
+              displayName: bskyProfile.data.displayName ?? null,
+              avatarUrl: bskyProfile.data.avatar ?? null,
+              createdAt: now,
+            })
+            .onConflictDoUpdate({
+              target: profiles.did,
+              set: {
+                handle: bskyProfile.data.handle,
+                displayName: bskyProfile.data.displayName ?? null,
+                avatarUrl: bskyProfile.data.avatar ?? null,
+                updatedAt: now,
+              },
+            })
+            .catch((err: unknown) => {
+              app.log.error({ err, did: row.did }, 'Session profile sync failed');
+            });
+
+          return reply.send({
+            did: row.did,
+            handle: bskyProfile.data.handle,
+            displayName: bskyProfile.data.displayName,
+            avatar: bskyProfile.data.avatar,
+          });
         }
 
         return reply.send({
