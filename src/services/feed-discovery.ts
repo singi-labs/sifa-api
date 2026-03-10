@@ -114,7 +114,13 @@ function parseRssFeed(xml: string, source: string): FeedItem[] {
       extractTag(itemXml, 'updated') ??
       '';
 
-    const plainDesc = description.replace(/<[^>]+>/g, '').trim();
+    let plainDesc = description;
+    let prev = '';
+    while (prev !== plainDesc) {
+      prev = plainDesc;
+      plainDesc = plainDesc.replace(/<[^>]+>/g, '');
+    }
+    plainDesc = plainDesc.trim();
     const excerpt = plainDesc.length > 200 ? plainDesc.slice(0, 200) + '...' : plainDesc;
 
     if (title || link) {
