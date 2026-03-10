@@ -19,19 +19,30 @@ type ImportPosition = z.infer<typeof positionSchema>;
 type ImportEducation = z.infer<typeof educationSchema>;
 type ImportSkill = z.infer<typeof skillSchema>;
 
+function normalizeLocation(
+  location: string | { country: string; region?: string; city?: string } | undefined,
+): { country: string; region?: string; city?: string } | undefined {
+  if (!location) return undefined;
+  if (typeof location === 'string') {
+    // Best-effort: treat the string as city, or skip if empty
+    const trimmed = location.trim();
+    if (!trimmed) return undefined;
+    return { country: trimmed };
+  }
+  return {
+    country: sanitize(location.country),
+    region: sanitizeOptional(location.region),
+    city: sanitizeOptional(location.city),
+  };
+}
+
 function sanitizeProfile(profile: ImportProfile): ImportProfile {
   return {
     ...profile,
     headline: sanitizeOptional(profile.headline),
     about: sanitizeOptional(profile.about),
     industry: sanitizeOptional(profile.industry),
-    location: profile.location
-      ? {
-          country: sanitize(profile.location.country),
-          region: sanitizeOptional(profile.location.region),
-          city: sanitizeOptional(profile.location.city),
-        }
-      : undefined,
+    location: normalizeLocation(profile.location),
   };
 }
 
@@ -41,13 +52,7 @@ function sanitizePosition(pos: ImportPosition): ImportPosition {
     companyName: sanitize(pos.companyName),
     title: sanitize(pos.title),
     description: sanitizeOptional(pos.description),
-    location: pos.location
-      ? {
-          country: sanitize(pos.location.country),
-          region: sanitizeOptional(pos.location.region),
-          city: sanitizeOptional(pos.location.city),
-        }
-      : undefined,
+    location: normalizeLocation(pos.location),
   };
 }
 
@@ -79,7 +84,10 @@ export function registerImportRoutes(
   app.post('/api/import/linkedin/confirm', { preHandler: requireAuth }, async (request, reply) => {
     const body = importPayloadSchema.safeParse(request.body);
     if (!body.success) {
-      return reply.status(400).send({ error: 'InvalidRequest', issues: body.error.issues });
+      app.log.warn({ issues: body.error.issues }, 'Import validation failed');
+      return reply
+        .status(400)
+        .send({ error: 'InvalidRequest', message: 'Validation failed', issues: body.error.issues });
     }
 
     const { profile, positions, education, skills } = body.data;
