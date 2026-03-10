@@ -16,30 +16,35 @@ export function registerOAuthRoutes(
   oauthClient: NodeOAuthClient | null,
 ) {
   // Login: initiate OAuth flow (stricter rate limit for auth endpoint)
-  app.post('/oauth/login', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request, reply) => {
-    const body = loginSchema.safeParse(request.body);
-    if (!body.success) {
-      return reply.status(400).send({ error: 'InvalidRequest', message: 'Handle is required' });
-    }
+  app.post(
+    '/oauth/login',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const body = loginSchema.safeParse(request.body);
+      if (!body.success) {
+        return reply.status(400).send({ error: 'InvalidRequest', message: 'Handle is required' });
+      }
 
-    if (!oauthClient) {
-      return reply.status(503).send({ error: 'Unavailable', message: 'OAuth not configured' });
-    }
+      if (!oauthClient) {
+        return reply.status(503).send({ error: 'Unavailable', message: 'OAuth not configured' });
+      }
 
-    let url: URL;
-    try {
-      url = await oauthClient.authorize(body.data.handle, {
-        scope: 'atproto repo:id.sifa.profile.* repo:id.sifa.graph.follow repo:id.sifa.endorsement',
-      });
-    } catch {
-      // PDS may not support granular scopes — fall back to transition:generic
-      url = await oauthClient.authorize(body.data.handle, {
-        scope: 'atproto transition:generic',
-      });
-    }
+      let url: URL;
+      try {
+        url = await oauthClient.authorize(body.data.handle, {
+          scope:
+            'atproto repo:id.sifa.profile.* repo:id.sifa.graph.follow repo:id.sifa.endorsement',
+        });
+      } catch {
+        // PDS may not support granular scopes — fall back to transition:generic
+        url = await oauthClient.authorize(body.data.handle, {
+          scope: 'atproto transition:generic',
+        });
+      }
 
-    return reply.send({ redirectUrl: url.toString() });
-  });
+      return reply.send({ redirectUrl: url.toString() });
+    },
+  );
 
   // Callback: exchange code for tokens
   app.get('/oauth/callback', async (request, reply) => {
