@@ -140,6 +140,8 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
       return reply.send({
         did: profile.did,
         handle: profile.handle,
+        displayName: profile.displayName,
+        avatar: profile.avatarUrl,
         headline: profile.headline,
         about: profile.about,
         industry: profile.industry,
@@ -202,6 +204,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         followersCount,
         followingCount,
         connectionsCount: connectionsCountResult,
+        isOwnProfile: viewerDid === profile.did,
         ...(viewerRelationship
           ? {
               isFollowing: viewerRelationship.isFollowing,
