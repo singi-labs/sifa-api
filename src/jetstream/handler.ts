@@ -9,6 +9,7 @@ export interface IndexerMap {
   educationIndexer?: (event: JetstreamEvent) => Promise<void>;
   skillIndexer?: (event: JetstreamEvent) => Promise<void>;
   followIndexer?: (event: JetstreamEvent) => Promise<void>;
+  externalAccountIndexer?: (event: JetstreamEvent) => Promise<void>;
 }
 
 const COLLECTION_MAP: Record<string, keyof IndexerMap> = {
@@ -17,6 +18,7 @@ const COLLECTION_MAP: Record<string, keyof IndexerMap> = {
   'id.sifa.profile.education': 'educationIndexer',
   'id.sifa.profile.skill': 'skillIndexer',
   'id.sifa.graph.follow': 'followIndexer',
+  'id.sifa.profile.externalAccount': 'externalAccountIndexer',
 };
 
 export function createEventRouter(db: Database, indexers: IndexerMap) {

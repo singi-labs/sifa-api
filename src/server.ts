@@ -17,6 +17,7 @@ import { registerProfileWriteRoutes } from './routes/profile-write.js';
 import { registerImportRoutes } from './routes/import.js';
 import { registerFollowRoutes } from './routes/follow.js';
 import { registerSearchRoutes } from './routes/search.js';
+import { registerExternalAccountRoutes } from './routes/external-accounts.js';
 import { registerWellKnownRoutes } from './routes/well-known.js';
 import { createJetstreamClient } from './jetstream/client.js';
 import { createEventRouter } from './jetstream/handler.js';
@@ -25,6 +26,7 @@ import { createPositionIndexer } from './jetstream/indexers/position.js';
 import { createEducationIndexer } from './jetstream/indexers/education.js';
 import { createSkillIndexer } from './jetstream/indexers/skill.js';
 import { createFollowIndexer } from './jetstream/indexers/follow.js';
+import { createExternalAccountIndexer } from './jetstream/indexers/external-account.js';
 import { createCursorManager } from './jetstream/cursor.js';
 
 export async function buildServer(config: Env) {
@@ -79,6 +81,7 @@ export async function buildServer(config: Env) {
   registerImportRoutes(app, db, oauthClient);
   registerFollowRoutes(app, db, oauthClient);
   registerSearchRoutes(app, db);
+  registerExternalAccountRoutes(app, db, oauthClient, valkey);
 
   // Start Jetstream in non-test mode
   if (config.NODE_ENV !== 'test') {
@@ -90,6 +93,7 @@ export async function buildServer(config: Env) {
       educationIndexer: createEducationIndexer(db),
       skillIndexer: createSkillIndexer(db),
       followIndexer: createFollowIndexer(db),
+      externalAccountIndexer: createExternalAccountIndexer(db),
     });
 
     const jetstream = createJetstreamClient({

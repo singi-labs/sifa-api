@@ -1,8 +1,17 @@
 import type { FastifyInstance } from 'fastify';
 import { eq, and, count, sql } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
-import { profiles, positions, education, skills, connections } from '../db/schema/index.js';
+import {
+  profiles,
+  positions,
+  education,
+  skills,
+  connections,
+  externalAccounts,
+  externalAccountVerifications,
+} from '../db/schema/index.js';
 import { resolveSessionDid } from '../middleware/auth.js';
+import { isVerifiablePlatform } from '../services/verification.js';
 
 export async function getMutualFollowCount(db: Database, did: string): Promise<number> {
   // Raw SQL required: Drizzle ORM doesn't support self-join aggregate subqueries for mutual follow counting
@@ -59,11 +68,17 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         return reply.status(404).send({ error: 'NotFound', message: 'Profile not found' });
       }
 
-      const [profilePositions, profileEducation, profileSkills] = await Promise.all([
-        db.select().from(positions).where(eq(positions.did, profile.did)),
-        db.select().from(education).where(eq(education.did, profile.did)),
-        db.select().from(skills).where(eq(skills.did, profile.did)),
-      ]);
+      const [profilePositions, profileEducation, profileSkills, profileExternalAccounts, verifications] =
+        await Promise.all([
+          db.select().from(positions).where(eq(positions.did, profile.did)),
+          db.select().from(education).where(eq(education.did, profile.did)),
+          db.select().from(skills).where(eq(skills.did, profile.did)),
+          db.select().from(externalAccounts).where(eq(externalAccounts.did, profile.did)),
+          db
+            .select()
+            .from(externalAccountVerifications)
+            .where(eq(externalAccountVerifications.did, profile.did)),
+        ]);
 
       const viewerDid = await resolveSessionDid(db, request.cookies?.session);
 
@@ -130,6 +145,27 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
           skillName: s.skillName,
           category: s.category,
         })),
+        externalAccounts: (() => {
+          const verificationMap = new Map(
+            verifications.map((v) => [
+              v.url,
+              { verified: v.verified, verifiedVia: v.verifiedVia },
+            ]),
+          );
+          return profileExternalAccounts.map((acc) => {
+            const v = verificationMap.get(acc.url);
+            return {
+              rkey: acc.rkey,
+              platform: acc.platform,
+              url: acc.url,
+              label: acc.label,
+              feedUrl: acc.feedUrl,
+              verifiable: isVerifiablePlatform(acc.platform),
+              verified: v?.verified ?? false,
+              verifiedVia: v?.verifiedVia ?? null,
+            };
+          });
+        })(),
         followersCount,
         followingCount,
         connectionsCount: connectionsCountResult,
