@@ -13,7 +13,7 @@ const locationSchema = z
 
 export const profileSelfSchema = z
   .object({
-    headline: z.string().max(120).optional(),
+    headline: z.string().max(300).optional(),
     about: z.string().max(50000).optional(),
     industry: z.string().max(100).optional(),
     location: locationSchema,
