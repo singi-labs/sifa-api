@@ -86,35 +86,42 @@ export function registerOAuthRoutes(
         maxAge: 180 * 24 * 60 * 60, // 180 days
       });
 
-      // Fire-and-forget: sync Bluesky profile data into local DB
-      void (async () => {
-        try {
-          const publicAgent = new Agent('https://public.api.bsky.app');
-          const bskyProfile = await publicAgent.getProfile({ actor: did });
-          await db
-            .insert(profiles)
-            .values({
-              did,
+      // Sync Bluesky profile and detect first login
+      let isNewUser = false;
+      try {
+        const [existing] = await db
+          .select({ did: profiles.did })
+          .from(profiles)
+          .where(eq(profiles.did, did))
+          .limit(1);
+        isNewUser = !existing;
+
+        const publicAgent = new Agent('https://public.api.bsky.app');
+        const bskyProfile = await publicAgent.getProfile({ actor: did });
+        await db
+          .insert(profiles)
+          .values({
+            did,
+            handle: bskyProfile.data.handle,
+            displayName: bskyProfile.data.displayName ?? null,
+            avatarUrl: bskyProfile.data.avatar ?? null,
+            createdAt: now,
+          })
+          .onConflictDoUpdate({
+            target: profiles.did,
+            set: {
               handle: bskyProfile.data.handle,
               displayName: bskyProfile.data.displayName ?? null,
               avatarUrl: bskyProfile.data.avatar ?? null,
-              createdAt: now,
-            })
-            .onConflictDoUpdate({
-              target: profiles.did,
-              set: {
-                handle: bskyProfile.data.handle,
-                displayName: bskyProfile.data.displayName ?? null,
-                avatarUrl: bskyProfile.data.avatar ?? null,
-                updatedAt: now,
-              },
-            });
-        } catch (err) {
-          app.log.error({ err, did }, 'Profile sync on login failed');
-        }
-      })();
+              updatedAt: now,
+            },
+          });
+      } catch (err) {
+        app.log.error({ err, did }, 'Profile sync on login failed');
+      }
 
-      return reply.redirect('/');
+      // New users go to import; returning users go home (frontend reads sessionStorage returnTo)
+      return reply.redirect(isNewUser ? '/import' : '/');
     },
   );
 
@@ -125,7 +132,21 @@ export function registerOAuthRoutes(
     async (request, reply) => {
       const sessionId = request.cookies?.session;
       if (sessionId) {
+        // Look up the DID before deleting the session row
+        const [row] = await db
+          .select({ did: sessions.did })
+          .from(sessions)
+          .where(eq(sessions.id, sessionId))
+          .limit(1);
+
         await db.delete(sessions).where(eq(sessions.id, sessionId));
+
+        // Revoke the OAuth tokens so the next login gets fresh scopes
+        if (row?.did && oauthClient) {
+          await oauthClient.revoke(row.did).catch((err: unknown) => {
+            app.log.warn({ err, did: row.did }, 'OAuth revocation on logout failed');
+          });
+        }
       }
       reply.clearCookie('session', { path: '/' });
       return reply.send({ status: 'ok' });
