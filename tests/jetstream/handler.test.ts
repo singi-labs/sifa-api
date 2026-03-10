@@ -1,10 +1,19 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createEventRouter } from '../../src/jetstream/handler.js';
 
+// Mock db — identity events upsert into profiles table
+const mockDb = {
+  insert: vi.fn().mockReturnValue({
+    values: vi.fn().mockReturnValue({
+      onConflictDoUpdate: vi.fn(),
+    }),
+  }),
+} as unknown as Parameters<typeof createEventRouter>[0];
+
 describe('Event router', () => {
   it('routes profile.self events to profile indexer', async () => {
     const profileIndexer = vi.fn();
-    const router = createEventRouter({ profileIndexer });
+    const router = createEventRouter(mockDb, { profileIndexer });
 
     await router({
       did: 'did:plc:test',
@@ -24,7 +33,7 @@ describe('Event router', () => {
 
   it('ignores unknown collections', async () => {
     const profileIndexer = vi.fn();
-    const router = createEventRouter({ profileIndexer });
+    const router = createEventRouter(mockDb, { profileIndexer });
 
     await router({
       did: 'did:plc:test',
@@ -44,7 +53,7 @@ describe('Event router', () => {
 
   it('routes position events to position indexer', async () => {
     const positionIndexer = vi.fn();
-    const router = createEventRouter({ positionIndexer });
+    const router = createEventRouter(mockDb, { positionIndexer });
 
     await router({
       did: 'did:plc:test',
@@ -64,7 +73,7 @@ describe('Event router', () => {
 
   it('routes education events to education indexer', async () => {
     const educationIndexer = vi.fn();
-    const router = createEventRouter({ educationIndexer });
+    const router = createEventRouter(mockDb, { educationIndexer });
 
     await router({
       did: 'did:plc:test',
@@ -84,7 +93,7 @@ describe('Event router', () => {
 
   it('routes skill events to skill indexer', async () => {
     const skillIndexer = vi.fn();
-    const router = createEventRouter({ skillIndexer });
+    const router = createEventRouter(mockDb, { skillIndexer });
 
     await router({
       did: 'did:plc:test',
@@ -104,7 +113,7 @@ describe('Event router', () => {
 
   it('routes follow events to follow indexer', async () => {
     const followIndexer = vi.fn();
-    const router = createEventRouter({ followIndexer });
+    const router = createEventRouter(mockDb, { followIndexer });
 
     await router({
       did: 'did:plc:test',
@@ -122,9 +131,17 @@ describe('Event router', () => {
     expect(followIndexer).toHaveBeenCalledOnce();
   });
 
-  it('ignores non-commit events', async () => {
+  it('handles identity events by updating handle', async () => {
     const profileIndexer = vi.fn();
-    const router = createEventRouter({ profileIndexer });
+    const db = {
+      insert: vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          onConflictDoUpdate: vi.fn(),
+        }),
+      }),
+    } as unknown as Parameters<typeof createEventRouter>[0];
+
+    const router = createEventRouter(db, { profileIndexer });
 
     await router({
       did: 'did:plc:test',
@@ -137,11 +154,28 @@ describe('Event router', () => {
     });
 
     expect(profileIndexer).not.toHaveBeenCalled();
+    expect(db.insert).toHaveBeenCalled();
+  });
+
+  it('ignores account events', async () => {
+    const profileIndexer = vi.fn();
+    const router = createEventRouter(mockDb, { profileIndexer });
+
+    await router({
+      did: 'did:plc:test',
+      time_us: 1234567890,
+      kind: 'account',
+      account: {
+        active: true,
+      },
+    });
+
+    expect(profileIndexer).not.toHaveBeenCalled();
   });
 
   it('passes full event to indexer', async () => {
     const profileIndexer = vi.fn();
-    const router = createEventRouter({ profileIndexer });
+    const router = createEventRouter(mockDb, { profileIndexer });
 
     const event = {
       did: 'did:plc:test',

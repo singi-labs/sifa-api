@@ -1,5 +1,6 @@
 import Fastify, { type FastifyError } from 'fastify';
 import * as Sentry from '@sentry/node';
+import './middleware/types.js';
 import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
@@ -40,8 +41,12 @@ export async function buildServer(config: Env) {
     },
   });
 
+  app.decorateRequest('did', null);
+  app.decorateRequest('oauthSession', null);
+
   const db = createDb(config.DATABASE_URL);
   const valkey = config.NODE_ENV !== 'test' ? createValkey(config.VALKEY_URL) : null;
+  if (valkey) await valkey.connect();
 
   await app.register(helmet);
   await app.register(cors, { origin: config.PUBLIC_URL, credentials: true });
@@ -79,7 +84,7 @@ export async function buildServer(config: Env) {
   if (config.NODE_ENV !== 'test') {
     const cursorManager = createCursorManager(db);
 
-    const eventRouter = createEventRouter({
+    const eventRouter = createEventRouter(db, {
       profileIndexer: createProfileIndexer(db),
       positionIndexer: createPositionIndexer(db),
       educationIndexer: createEducationIndexer(db),

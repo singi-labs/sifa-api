@@ -4,8 +4,7 @@ import type { Database } from '../db/index.js';
 import { z } from 'zod';
 import { profileSelfSchema, positionSchema, educationSchema, skillSchema } from './schemas.js';
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
-import { createAuthMiddleware } from '../middleware/auth.js';
-import type { AuthenticatedRequest } from '../middleware/types.js';
+import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
 
 const importPayloadSchema = z.object({
@@ -84,7 +83,7 @@ export function registerImportRoutes(
     }
 
     const { profile, positions, education, skills } = body.data;
-    const { did, session } = request as AuthenticatedRequest;
+    const { did, session } = getAuthContext(request);
 
     // Build write operations with sanitized data
     const writes: ReturnType<typeof buildApplyWritesOp>[] = [];
