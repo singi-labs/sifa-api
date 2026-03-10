@@ -33,13 +33,12 @@ export function registerOAuthRoutes(
       let url: URL;
       try {
         url = await oauthClient.authorize(body.data.handle, {
-          scope:
-            'atproto repo:id.sifa.profile.* repo:id.sifa.graph.follow repo:id.sifa.endorsement',
+          scope: ['atproto', 'transition:generic', 'transition:chat.bsky'].join(' '),
         });
       } catch {
-        // PDS may not support granular scopes — fall back to transition:generic
+        // PDS may not support transition:generic — try bare atproto
         url = await oauthClient.authorize(body.data.handle, {
-          scope: 'atproto transition:generic',
+          scope: 'atproto',
         });
       }
 
