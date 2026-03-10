@@ -47,84 +47,98 @@ export function registerOAuthRoutes(
   );
 
   // Callback: exchange code for tokens
-  app.get('/oauth/callback', async (request, reply) => {
-    const params = new URLSearchParams(request.url.split('?')[1] ?? '');
-    if (!params.get('code') || !params.get('state')) {
-      return reply.status(400).send({ error: 'InvalidRequest', message: 'Missing code or state' });
-    }
+  app.get(
+    '/oauth/callback',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const params = new URLSearchParams(request.url.split('?')[1] ?? '');
+      if (!params.get('code') || !params.get('state')) {
+        return reply
+          .status(400)
+          .send({ error: 'InvalidRequest', message: 'Missing code or state' });
+      }
 
-    if (!oauthClient) {
-      return reply.status(503).send({ error: 'Unavailable', message: 'OAuth not configured' });
-    }
+      if (!oauthClient) {
+        return reply.status(503).send({ error: 'Unavailable', message: 'OAuth not configured' });
+      }
 
-    const { session } = await oauthClient.callback(params);
-    const did = session.did;
+      const { session } = await oauthClient.callback(params);
+      const did = session.did;
 
-    // Create a secure session ID (not the DID)
-    const sessionId = randomUUID();
-    const now = new Date();
-    const expiresAt = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000); // 180 days
+      // Create a secure session ID (not the DID)
+      const sessionId = randomUUID();
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 180 * 24 * 60 * 60 * 1000); // 180 days
 
-    await db.insert(sessions).values({
-      id: sessionId,
-      did,
-      createdAt: now,
-      expiresAt,
-    });
+      await db.insert(sessions).values({
+        id: sessionId,
+        did,
+        createdAt: now,
+        expiresAt,
+      });
 
-    // Set session cookie to the random sessionId (NOT the DID)
-    reply.setCookie('session', sessionId, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 180 * 24 * 60 * 60, // 180 days
-    });
+      // Set session cookie to the random sessionId (NOT the DID)
+      reply.setCookie('session', sessionId, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 180 * 24 * 60 * 60, // 180 days
+      });
 
-    return reply.redirect('/');
-  });
+      return reply.redirect('/');
+    },
+  );
 
   // Logout
-  app.post('/oauth/logout', async (request, reply) => {
-    const sessionId = request.cookies?.session;
-    if (sessionId) {
-      await db.delete(sessions).where(eq(sessions.id, sessionId));
-    }
-    reply.clearCookie('session', { path: '/' });
-    return reply.send({ status: 'ok' });
-  });
+  app.post(
+    '/oauth/logout',
+    { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const sessionId = request.cookies?.session;
+      if (sessionId) {
+        await db.delete(sessions).where(eq(sessions.id, sessionId));
+      }
+      reply.clearCookie('session', { path: '/' });
+      return reply.send({ status: 'ok' });
+    },
+  );
 
   // Session info
-  app.get('/api/auth/session', async (request, reply) => {
-    const sessionId = request.cookies?.session;
-    if (!sessionId) {
-      return reply.status(401).send({ error: 'Unauthorized' });
-    }
+  app.get(
+    '/api/auth/session',
+    { config: { rateLimit: { max: 30, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const sessionId = request.cookies?.session;
+      if (!sessionId) {
+        return reply.status(401).send({ error: 'Unauthorized' });
+      }
 
-    if (!oauthClient) {
-      return reply.status(503).send({ error: 'Unavailable' });
-    }
+      if (!oauthClient) {
+        return reply.status(503).send({ error: 'Unavailable' });
+      }
 
-    // Look up session from DB
-    const [row] = await db
-      .select({ did: sessions.did })
-      .from(sessions)
-      .where(and(eq(sessions.id, sessionId), gt(sessions.expiresAt, new Date())))
-      .limit(1);
+      // Look up session from DB
+      const [row] = await db
+        .select({ did: sessions.did })
+        .from(sessions)
+        .where(and(eq(sessions.id, sessionId), gt(sessions.expiresAt, new Date())))
+        .limit(1);
 
-    if (!row) {
-      reply.clearCookie('session', { path: '/' });
-      return reply.status(401).send({ error: 'SessionExpired' });
-    }
+      if (!row) {
+        reply.clearCookie('session', { path: '/' });
+        return reply.status(401).send({ error: 'SessionExpired' });
+      }
 
-    try {
-      const session = await oauthClient.restore(row.did);
-      return reply.send({
-        did: session.did,
-      });
-    } catch {
-      reply.clearCookie('session', { path: '/' });
-      return reply.status(401).send({ error: 'SessionExpired' });
-    }
-  });
+      try {
+        const session = await oauthClient.restore(row.did);
+        return reply.send({
+          did: session.did,
+        });
+      } catch {
+        reply.clearCookie('session', { path: '/' });
+        return reply.status(401).send({ error: 'SessionExpired' });
+      }
+    },
+  );
 }
