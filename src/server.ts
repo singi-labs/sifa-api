@@ -8,6 +8,7 @@ import rateLimit from '@fastify/rate-limit';
 import { existsSync } from 'node:fs';
 import type { Env } from './config.js';
 import { createDb } from './db/index.js';
+import { runMigrations } from './db/migrate.js';
 import { createValkey } from './cache/index.js';
 import { createOAuthClient } from './oauth/client.js';
 import { registerOAuthMetadata } from './oauth/metadata.js';
@@ -47,6 +48,13 @@ export async function buildServer(config: Env) {
   app.decorateRequest('oauthSession', null);
 
   const db = createDb(config.DATABASE_URL);
+
+  // Run pending migrations on startup
+  if (config.NODE_ENV !== 'test') {
+    await runMigrations(db);
+    app.log.info('Database migrations complete');
+  }
+
   const valkey = config.NODE_ENV !== 'test' ? createValkey(config.VALKEY_URL) : null;
   if (valkey) await valkey.connect();
 
