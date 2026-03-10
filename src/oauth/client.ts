@@ -33,7 +33,7 @@ export async function createOAuthClient(
       client_uri: config.PUBLIC_URL,
       response_types: ['code'],
       grant_types: ['authorization_code', 'refresh_token'],
-      scope: 'atproto repo:id.sifa.profile.* repo:id.sifa.graph.follow repo:id.sifa.endorsement',
+      scope: 'atproto transition:generic',
       redirect_uris: [`${config.PUBLIC_URL}/oauth/callback`],
       dpop_bound_access_tokens: true,
       token_endpoint_auth_method: 'private_key_jwt',
