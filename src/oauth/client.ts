@@ -37,6 +37,7 @@ export async function createOAuthClient(
       redirect_uris: [`${config.PUBLIC_URL}/oauth/callback`],
       dpop_bound_access_tokens: true,
       token_endpoint_auth_method: 'private_key_jwt',
+      token_endpoint_auth_signing_alg: 'ES256',
       jwks_uri: `${config.PUBLIC_URL}/oauth/jwks.json`,
     },
     keyset: [key],
