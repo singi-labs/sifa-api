@@ -17,6 +17,7 @@ export const WANTED_COLLECTIONS = [
   'id.sifa.endorsement',
   'id.sifa.endorsement.confirmation',
   'id.sifa.graph.follow',
+  'id.sifa.profile.externalAccount',
 ] as const;
 
 export function buildJetstreamUrl(baseUrl: string, cursor?: bigint): string {

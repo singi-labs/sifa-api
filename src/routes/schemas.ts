@@ -48,3 +48,22 @@ export const skillSchema = z.object({
   skillName: z.string().min(1).max(100),
   category: z.string().max(100).optional(),
 });
+
+export const VALID_PLATFORMS = [
+  'rss',
+  'fediverse',
+  'twitter',
+  'instagram',
+  'github',
+  'youtube',
+  'linkedin',
+  'website',
+  'other',
+] as const;
+
+export const externalAccountSchema = z.object({
+  platform: z.enum(VALID_PLATFORMS),
+  url: z.string().url().max(2000),
+  label: z.string().max(100).optional(),
+  feedUrl: z.string().url().max(2000).optional(),
+});
