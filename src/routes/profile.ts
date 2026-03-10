@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { eq, and, count, sql } from 'drizzle-orm';
+import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
 import {
   profiles,
@@ -65,7 +66,37 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
       const [profile] = await db.select().from(profiles).where(condition).limit(1);
 
       if (!profile) {
-        return reply.status(404).send({ error: 'NotFound', message: 'Profile not found' });
+        // Fall back to public Bluesky API for ATproto users without Sifa-specific data
+        try {
+          const publicAgent = new Agent('https://public.api.bsky.app');
+          const bskyProfile = await publicAgent.getProfile({ actor: handleOrDid });
+          return reply.send({
+            did: bskyProfile.data.did,
+            handle: bskyProfile.data.handle,
+            displayName: bskyProfile.data.displayName,
+            avatar: bskyProfile.data.avatar,
+            headline: bskyProfile.data.description,
+            about: null,
+            industry: null,
+            locationCountry: null,
+            locationRegion: null,
+            locationCity: null,
+            website: null,
+            openTo: null,
+            preferredWorkplace: null,
+            langs: null,
+            createdAt: bskyProfile.data.createdAt ?? new Date().toISOString(),
+            positions: [],
+            education: [],
+            skills: [],
+            externalAccounts: [],
+            followersCount: 0,
+            followingCount: 0,
+            connectionsCount: 0,
+          });
+        } catch {
+          return reply.status(404).send({ error: 'NotFound', message: 'Profile not found' });
+        }
       }
 
       const [

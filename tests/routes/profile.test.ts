@@ -107,7 +107,7 @@ describe('GET /api/profile/:handleOrDid', () => {
   });
 
   it('returns 404 for unknown handle', async () => {
-    const res = await app.inject({ method: 'GET', url: '/api/profile/nonexistent.bsky.social' });
+    const res = await app.inject({ method: 'GET', url: '/api/profile/nonexistent.invalid' });
     expect(res.statusCode).toBe(404);
   });
 
