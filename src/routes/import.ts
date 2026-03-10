@@ -139,8 +139,12 @@ export function registerImportRoutes(
         const batch = writes.slice(i, i + BATCH_SIZE);
         await writeToUserPds(session, did, batch);
       }
-    } catch (_err) {
-      return reply.status(500).send({ error: 'ImportFailed', message: 'Failed to write to PDS' });
+    } catch (err) {
+      const detail = err instanceof Error ? err.message : String(err);
+      app.log.error({ err, did, writeCount: writes.length }, 'PDS write failed during import');
+      return reply
+        .status(500)
+        .send({ error: 'ImportFailed', message: 'Failed to write to PDS', detail });
     }
 
     return reply.status(200).send({
