@@ -4,12 +4,7 @@ import { logger } from '../logger.js';
 
 const FETCH_TIMEOUT = 10000;
 
-const VERIFIABLE_PLATFORMS = new Set([
-  'rss',
-  'fediverse',
-  'website',
-  'github',
-]);
+const VERIFIABLE_PLATFORMS = new Set(['rss', 'fediverse', 'website', 'github']);
 
 export function isVerifiablePlatform(platform: string): boolean {
   return VERIFIABLE_PLATFORMS.has(platform);

@@ -125,8 +125,9 @@ describe('fetchFeedItems', () => {
   });
 
   it('limits to 20 items', async () => {
-    const items = Array.from({ length: 25 }, (_, i) =>
-      `<item><title>Post ${i}</title><link>https://example.com/${i}</link></item>`,
+    const items = Array.from(
+      { length: 25 },
+      (_, i) => `<item><title>Post ${i}</title><link>https://example.com/${i}</link></item>`,
     ).join('');
 
     mockFetch.mockResolvedValue({

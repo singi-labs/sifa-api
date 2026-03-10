@@ -3,11 +3,7 @@ import { eq, and } from 'drizzle-orm';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import type { Database } from '../db/index.js';
 import type { ValkeyClient } from '../cache/index.js';
-import {
-  externalAccounts,
-  externalAccountVerifications,
-  profiles,
-} from '../db/schema/index.js';
+import { externalAccounts, externalAccountVerifications, profiles } from '../db/schema/index.js';
 import { externalAccountSchema } from './schemas.js';
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
@@ -25,40 +21,50 @@ export function registerExternalAccountRoutes(
   const requireAuth = createAuthMiddleware(oauthClient, db);
 
   // POST /api/profile/external-accounts -- create a new external account
-  app.post('/api/profile/external-accounts', { preHandler: requireAuth }, async (request, reply) => {
-    const parsed = externalAccountSchema.safeParse(request.body);
-    if (!parsed.success) {
-      return reply.status(400).send({ error: 'ValidationError', issues: parsed.error.issues });
-    }
+  app.post(
+    '/api/profile/external-accounts',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const parsed = externalAccountSchema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'ValidationError', issues: parsed.error.issues });
+      }
 
-    const { did, session } = getAuthContext(request);
-    const rkey = generateTid();
+      const { did, session } = getAuthContext(request);
+      const rkey = generateTid();
 
-    let feedUrl = parsed.data.feedUrl;
-    if (!feedUrl) {
-      feedUrl = (await discoverFeedUrl(parsed.data.platform, parsed.data.url)) ?? undefined;
-    }
+      let feedUrl = parsed.data.feedUrl;
+      if (!feedUrl) {
+        feedUrl = (await discoverFeedUrl(parsed.data.platform, parsed.data.url)) ?? undefined;
+      }
 
-    const record: Record<string, unknown> = {
-      createdAt: new Date().toISOString(),
-      platform: parsed.data.platform,
-      url: parsed.data.url,
-      ...(parsed.data.label ? { label: parsed.data.label } : {}),
-      ...(feedUrl ? { feedUrl } : {}),
-    };
+      const record: Record<string, unknown> = {
+        createdAt: new Date().toISOString(),
+        platform: parsed.data.platform,
+        url: parsed.data.url,
+        ...(parsed.data.label ? { label: parsed.data.label } : {}),
+        ...(feedUrl ? { feedUrl } : {}),
+      };
 
-    await writeToUserPds(session, did, [
-      buildApplyWritesOp('create', 'id.sifa.profile.externalAccount', rkey, record),
-    ]);
+      await writeToUserPds(session, did, [
+        buildApplyWritesOp('create', 'id.sifa.profile.externalAccount', rkey, record),
+      ]);
 
-    // Trigger verification in the background
-    const [profile] = await db.select().from(profiles).where(eq(profiles.did, did)).limit(1);
-    if (profile) {
-      void checkAndStoreVerification(db, did, parsed.data.url, parsed.data.platform, profile.handle);
-    }
+      // Trigger verification in the background
+      const [profile] = await db.select().from(profiles).where(eq(profiles.did, did)).limit(1);
+      if (profile) {
+        void checkAndStoreVerification(
+          db,
+          did,
+          parsed.data.url,
+          parsed.data.platform,
+          profile.handle,
+        );
+      }
 
-    return reply.status(201).send({ rkey, feedUrl: feedUrl ?? null });
-  });
+      return reply.status(201).send({ rkey, feedUrl: feedUrl ?? null });
+    },
+  );
 
   // PUT /api/profile/external-accounts/:rkey -- update an external account
   app.put<{ Params: { rkey: string } }>(
@@ -128,9 +134,7 @@ export function registerExternalAccountRoutes(
     async (request, reply) => {
       const { handleOrDid } = request.params;
       const isDid = handleOrDid.startsWith('did:');
-      const condition = isDid
-        ? eq(profiles.did, handleOrDid)
-        : eq(profiles.handle, handleOrDid);
+      const condition = isDid ? eq(profiles.did, handleOrDid) : eq(profiles.handle, handleOrDid);
 
       const [profile] = await db.select().from(profiles).where(condition).limit(1);
       if (!profile) {
@@ -177,9 +181,7 @@ export function registerExternalAccountRoutes(
     async (request, reply) => {
       const { handleOrDid } = request.params;
       const isDid = handleOrDid.startsWith('did:');
-      const condition = isDid
-        ? eq(profiles.did, handleOrDid)
-        : eq(profiles.handle, handleOrDid);
+      const condition = isDid ? eq(profiles.did, handleOrDid) : eq(profiles.handle, handleOrDid);
 
       const [profile] = await db.select().from(profiles).where(condition).limit(1);
       if (!profile) {
@@ -208,9 +210,7 @@ export function registerExternalAccountRoutes(
           }
         }
 
-        const sourceLabel = acc.platform === 'fediverse'
-          ? 'Mastodon'
-          : acc.label ?? acc.platform;
+        const sourceLabel = acc.platform === 'fediverse' ? 'Mastodon' : (acc.label ?? acc.platform);
         const items = await fetchFeedItems(acc.feedUrl, sourceLabel);
 
         if (valkey && items.length > 0) {

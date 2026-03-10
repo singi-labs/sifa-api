@@ -2,10 +2,7 @@ import { logger } from '../logger.js';
 
 const FETCH_TIMEOUT = 10000;
 
-export async function discoverFeedUrl(
-  platform: string,
-  url: string,
-): Promise<string | null> {
+export async function discoverFeedUrl(platform: string, url: string): Promise<string | null> {
   try {
     if (platform === 'fediverse') {
       return discoverFediverseFeed(url);
@@ -44,14 +41,16 @@ async function discoverRssFeed(url: string): Promise<string | null> {
     if (!response.ok) return null;
 
     const contentType = response.headers.get('content-type') ?? '';
-    if (contentType.includes('xml') || contentType.includes('rss') || contentType.includes('atom')) {
+    if (
+      contentType.includes('xml') ||
+      contentType.includes('rss') ||
+      contentType.includes('atom')
+    ) {
       return url;
     }
 
     const html = await response.text();
-    const linkMatch = html.match(
-      /<link[^>]+type=["']application\/(rss|atom)\+xml["'][^>]*>/i,
-    );
+    const linkMatch = html.match(/<link[^>]+type=["']application\/(rss|atom)\+xml["'][^>]*>/i);
     if (!linkMatch) return null;
 
     const hrefMatch = linkMatch[0].match(/href=["']([^"']+)["']/i);
@@ -98,18 +97,19 @@ export async function fetchFeedItems(feedUrl: string, source: string): Promise<F
 function parseRssFeed(xml: string, source: string): FeedItem[] {
   const items: FeedItem[] = [];
 
-  const itemMatches = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) ??
-    xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) ??
-    [];
+  const itemMatches =
+    xml.match(/<item[\s>][\s\S]*?<\/item>/gi) ?? xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) ?? [];
 
   for (const itemXml of itemMatches.slice(0, 20)) {
     const title = extractTag(itemXml, 'title') ?? '';
     const link = extractLink(itemXml);
-    const description = extractTag(itemXml, 'description') ??
+    const description =
+      extractTag(itemXml, 'description') ??
       extractTag(itemXml, 'summary') ??
       extractTag(itemXml, 'content') ??
       '';
-    const pubDate = extractTag(itemXml, 'pubDate') ??
+    const pubDate =
+      extractTag(itemXml, 'pubDate') ??
       extractTag(itemXml, 'published') ??
       extractTag(itemXml, 'updated') ??
       '';

@@ -36,11 +36,7 @@ describe('verifyRelMe', () => {
         ),
     });
 
-    const result = await verifyRelMe(
-      'https://example.com',
-      'sifa.id/p/alice',
-      'did:plc:alice',
-    );
+    const result = await verifyRelMe('https://example.com', 'sifa.id/p/alice', 'did:plc:alice');
     expect(result).toBe(true);
   });
 
@@ -53,48 +49,31 @@ describe('verifyRelMe', () => {
         ),
     });
 
-    const result = await verifyRelMe(
-      'https://example.com',
-      'sifa.id/p/alice',
-      'did:plc:alice123',
-    );
+    const result = await verifyRelMe('https://example.com', 'sifa.id/p/alice', 'did:plc:alice123');
     expect(result).toBe(true);
   });
 
   it('returns false when no rel=me link found', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      text: () =>
-        Promise.resolve('<html><body><a href="https://other.com">Link</a></body></html>'),
+      text: () => Promise.resolve('<html><body><a href="https://other.com">Link</a></body></html>'),
     });
 
-    const result = await verifyRelMe(
-      'https://example.com',
-      'sifa.id/p/alice',
-      'did:plc:alice',
-    );
+    const result = await verifyRelMe('https://example.com', 'sifa.id/p/alice', 'did:plc:alice');
     expect(result).toBe(false);
   });
 
   it('returns false on fetch error', async () => {
     mockFetch.mockRejectedValue(new Error('Network error'));
 
-    const result = await verifyRelMe(
-      'https://example.com',
-      'sifa.id/p/alice',
-      'did:plc:alice',
-    );
+    const result = await verifyRelMe('https://example.com', 'sifa.id/p/alice', 'did:plc:alice');
     expect(result).toBe(false);
   });
 
   it('returns false on non-ok response', async () => {
     mockFetch.mockResolvedValue({ ok: false });
 
-    const result = await verifyRelMe(
-      'https://example.com',
-      'sifa.id/p/alice',
-      'did:plc:alice',
-    );
+    const result = await verifyRelMe('https://example.com', 'sifa.id/p/alice', 'did:plc:alice');
     expect(result).toBe(false);
   });
 });
