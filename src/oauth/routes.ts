@@ -5,7 +5,7 @@ import { eq, and, gt } from 'drizzle-orm';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
-import { sessions, profiles } from '../db/schema/index.js';
+import { sessions, profiles, oauthSessions } from '../db/schema/index.js';
 
 const loginSchema = z.object({
   handle: z.string().min(1).max(253),
@@ -141,11 +141,20 @@ export function registerOAuthRoutes(
 
         await db.delete(sessions).where(eq(sessions.id, sessionId));
 
-        // Revoke the OAuth tokens so the next login gets fresh scopes
-        if (row?.did && oauthClient) {
-          await oauthClient.revoke(row.did).catch((err: unknown) => {
-            app.log.warn({ err, did: row.did }, 'OAuth revocation on logout failed');
-          });
+        // Clear OAuth tokens: revoke at PDS + delete from local store
+        if (row?.did) {
+          // Direct DB delete ensures local tokens are always cleared
+          await db
+            .delete(oauthSessions)
+            .where(eq(oauthSessions.did, row.did))
+            .catch((err: unknown) => {
+              app.log.warn({ err, did: row.did }, 'OAuth session DB cleanup failed');
+            });
+
+          // Also try PDS-level revocation (best effort)
+          if (oauthClient) {
+            await oauthClient.revoke(row.did).catch(() => {});
+          }
         }
       }
       reply.clearCookie('session', { path: '/' });
