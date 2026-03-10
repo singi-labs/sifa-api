@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
 import { eq, and, gt } from 'drizzle-orm';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
+import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
 import { sessions } from '../db/schema/index.js';
 
@@ -132,8 +133,16 @@ export function registerOAuthRoutes(
 
       try {
         const session = await oauthClient.restore(row.did);
+
+        // Resolve profile from public API to get handle, display name, avatar
+        const publicAgent = new Agent('https://public.api.bsky.app');
+        const profile = await publicAgent.getProfile({ actor: session.did });
+
         return reply.send({
           did: session.did,
+          handle: profile.data.handle,
+          displayName: profile.data.displayName,
+          avatar: profile.data.avatar,
         });
       } catch {
         reply.clearCookie('session', { path: '/' });
