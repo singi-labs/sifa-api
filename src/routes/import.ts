@@ -8,7 +8,7 @@ import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
 
 const importPayloadSchema = z.object({
-  profile: profileSelfSchema.optional(),
+  profile: profileSelfSchema.nullish(),
   positions: z.array(positionSchema).max(100).default([]),
   education: z.array(educationSchema).max(50).default([]),
   skills: z.array(skillSchema).max(200).default([]),
