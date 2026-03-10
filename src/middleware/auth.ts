@@ -1,9 +1,10 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
+import type { OAuthSession } from '@atproto/oauth-client';
 import { eq, and, gt } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
 import { sessions } from '../db/schema/index.js';
-import type { AuthenticatedRequest } from './types.js';
+import './types.js';
 
 /**
  * Resolves a session cookie value to a DID by looking up the sessions table.
@@ -54,11 +55,23 @@ export function createAuthMiddleware(oauthClient: NodeOAuthClient | null, db: Da
 
     try {
       const session = await oauthClient.restore(did);
-      (request as AuthenticatedRequest).session = session;
-      (request as AuthenticatedRequest).did = session.did;
+      request.oauthSession = session;
+      request.did = session.did;
     } catch {
       reply.clearCookie('session', { path: '/' });
       return reply.status(401).send({ error: 'SessionExpired', message: 'Please sign in again' });
     }
   };
+}
+
+/**
+ * Extracts the authenticated DID and OAuth session from the request.
+ * Only safe to call in routes guarded by requireAuth middleware.
+ */
+export function getAuthContext(request: FastifyRequest): { did: string; session: OAuthSession } {
+  const { did, oauthSession } = request;
+  if (!did || !oauthSession) {
+    throw new Error('getAuthContext called without auth middleware');
+  }
+  return { did, session: oauthSession };
 }
