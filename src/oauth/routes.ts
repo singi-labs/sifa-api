@@ -5,7 +5,7 @@ import { eq, and, gt } from 'drizzle-orm';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
-import { sessions } from '../db/schema/index.js';
+import { sessions, profiles } from '../db/schema/index.js';
 
 const loginSchema = z.object({
   handle: z.string().min(1).max(253),
@@ -87,6 +87,34 @@ export function registerOAuthRoutes(
         maxAge: 180 * 24 * 60 * 60, // 180 days
       });
 
+      // Fire-and-forget: sync Bluesky profile data into local DB
+      void (async () => {
+        try {
+          const publicAgent = new Agent('https://public.api.bsky.app');
+          const bskyProfile = await publicAgent.getProfile({ actor: did });
+          await db
+            .insert(profiles)
+            .values({
+              did,
+              handle: bskyProfile.data.handle,
+              displayName: bskyProfile.data.displayName ?? null,
+              avatarUrl: bskyProfile.data.avatar ?? null,
+              createdAt: now,
+            })
+            .onConflictDoUpdate({
+              target: profiles.did,
+              set: {
+                handle: bskyProfile.data.handle,
+                displayName: bskyProfile.data.displayName ?? null,
+                avatarUrl: bskyProfile.data.avatar ?? null,
+                updatedAt: now,
+              },
+            });
+        } catch (err) {
+          app.log.error({ err, did }, 'Profile sync on login failed');
+        }
+      })();
+
       return reply.redirect('/');
     },
   );
@@ -132,17 +160,29 @@ export function registerOAuthRoutes(
       }
 
       try {
-        const session = await oauthClient.restore(row.did);
+        await oauthClient.restore(row.did);
 
-        // Resolve profile from public API to get handle, display name, avatar
-        const publicAgent = new Agent('https://public.api.bsky.app');
-        const profile = await publicAgent.getProfile({ actor: session.did });
+        // Read profile from local DB (synced on login)
+        const [profile] = await db
+          .select({
+            handle: profiles.handle,
+            displayName: profiles.displayName,
+            avatarUrl: profiles.avatarUrl,
+          })
+          .from(profiles)
+          .where(eq(profiles.did, row.did))
+          .limit(1);
+
+        if (!profile) {
+          // Profile not yet synced — return DID only, frontend handles gracefully
+          return reply.send({ did: row.did, handle: row.did });
+        }
 
         return reply.send({
-          did: session.did,
-          handle: profile.data.handle,
-          displayName: profile.data.displayName,
-          avatar: profile.data.avatar,
+          did: row.did,
+          handle: profile.handle,
+          displayName: profile.displayName,
+          avatar: profile.avatarUrl,
         });
       } catch {
         reply.clearCookie('session', { path: '/' });

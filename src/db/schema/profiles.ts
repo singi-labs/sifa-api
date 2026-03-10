@@ -5,6 +5,8 @@ export const profiles = pgTable(
   {
     did: text('did').primaryKey(),
     handle: text('handle').notNull(),
+    displayName: text('display_name'),
+    avatarUrl: text('avatar_url'),
     headline: text('headline'),
     about: text('about'),
     industry: text('industry'),
