@@ -30,15 +30,22 @@ export function registerOAuthRoutes(
         return reply.status(503).send({ error: 'Unavailable', message: 'OAuth not configured' });
       }
 
+      const granularScope =
+        'atproto repo:id.sifa.profile.self repo:id.sifa.profile.position repo:id.sifa.profile.education repo:id.sifa.profile.skill repo:id.sifa.profile.externalAccount repo:id.sifa.graph.follow';
+
       let url: URL;
       try {
         url = await oauthClient.authorize(body.data.handle, {
-          scope: ['atproto', 'transition:generic', 'transition:chat.bsky'].join(' '),
+          scope: granularScope,
         });
       } catch {
-        // PDS may not support transition:generic — try bare atproto
+        // PDS may not support granular scopes — fall back to transition:generic
+        app.log.warn(
+          { handle: body.data.handle },
+          'Granular scopes rejected by PDS, falling back to transition:generic',
+        );
         url = await oauthClient.authorize(body.data.handle, {
-          scope: 'atproto',
+          scope: 'atproto transition:generic',
         });
       }
 
