@@ -15,8 +15,8 @@ export function registerOAuthRoutes(
   db: Database,
   oauthClient: NodeOAuthClient | null,
 ) {
-  // Login: initiate OAuth flow
-  app.post('/oauth/login', async (request, reply) => {
+  // Login: initiate OAuth flow (stricter rate limit for auth endpoint)
+  app.post('/oauth/login', { config: { rateLimit: { max: 10, timeWindow: '1 minute' } } }, async (request, reply) => {
     const body = loginSchema.safeParse(request.body);
     if (!body.success) {
       return reply.status(400).send({ error: 'InvalidRequest', message: 'Handle is required' });
