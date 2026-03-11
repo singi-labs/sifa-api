@@ -54,11 +54,12 @@ describe('OAuth routes', () => {
     expect([200, 302]).toContain(res.statusCode);
   });
 
-  it('GET /api/auth/session returns 401 when not authenticated', async () => {
+  it('GET /api/auth/session returns 200 with authenticated:false when not authenticated', async () => {
     const res = await app.inject({
       method: 'GET',
       url: '/api/auth/session',
     });
-    expect(res.statusCode).toBe(401);
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual({ authenticated: false });
   });
 });

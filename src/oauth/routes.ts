@@ -195,7 +195,7 @@ export function registerOAuthRoutes(
     async (request, reply) => {
       const sessionId = request.cookies?.session;
       if (!sessionId) {
-        return reply.status(401).send({ error: 'Unauthorized' });
+        return reply.send({ authenticated: false });
       }
 
       if (!oauthClient) {
@@ -261,6 +261,7 @@ export function registerOAuthRoutes(
             });
 
           return reply.send({
+            authenticated: true,
             did: row.did,
             handle: bskyProfile.data.handle,
             displayName: bskyProfile.data.displayName,
@@ -269,6 +270,7 @@ export function registerOAuthRoutes(
         }
 
         return reply.send({
+          authenticated: true,
           did: row.did,
           handle: profile.handle,
           displayName: profile.displayName,
