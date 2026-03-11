@@ -17,7 +17,13 @@ import {
   honors as honorsTable,
   languages as languagesTable,
 } from '../db/schema/index.js';
-import { profileSelfSchema, positionSchema, educationSchema, skillSchema, COLLECTION_SCHEMAS } from './schemas.js';
+import {
+  profileSelfSchema,
+  positionSchema,
+  educationSchema,
+  skillSchema,
+  COLLECTION_SCHEMAS,
+} from './schemas.js';
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
@@ -253,7 +259,9 @@ export function registerProfileWriteRoutes(
       const { collection } = request.params;
       const schema = COLLECTION_SCHEMAS[collection];
       if (!schema) {
-        return reply.status(400).send({ error: 'UnknownCollection', message: `Unknown collection: ${collection}` });
+        return reply
+          .status(400)
+          .send({ error: 'UnknownCollection', message: `Unknown collection: ${collection}` });
       }
       const parsed = schema.safeParse(request.body);
       if (!parsed.success) {
@@ -275,7 +283,9 @@ export function registerProfileWriteRoutes(
       const { collection, rkey } = request.params;
       const schema = COLLECTION_SCHEMAS[collection];
       if (!schema) {
-        return reply.status(400).send({ error: 'UnknownCollection', message: `Unknown collection: ${collection}` });
+        return reply
+          .status(400)
+          .send({ error: 'UnknownCollection', message: `Unknown collection: ${collection}` });
       }
       const parsed = schema.safeParse(request.body);
       if (!parsed.success) {
@@ -295,7 +305,9 @@ export function registerProfileWriteRoutes(
     async (request, reply) => {
       const { collection, rkey } = request.params;
       if (!COLLECTION_SCHEMAS[collection]) {
-        return reply.status(400).send({ error: 'UnknownCollection', message: `Unknown collection: ${collection}` });
+        return reply
+          .status(400)
+          .send({ error: 'UnknownCollection', message: `Unknown collection: ${collection}` });
       }
       const { did, session } = getAuthContext(request);
       await writeToUserPds(session, did, [buildApplyWritesOp('delete', collection, rkey)]);
