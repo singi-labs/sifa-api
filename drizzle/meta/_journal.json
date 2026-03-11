@@ -50,6 +50,13 @@
       "when": 1773444600000,
       "tag": "0006_migration_catchup",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1773530400000,
+      "tag": "0007_profile_overrides",
+      "breakpoints": true
     }
   ]
 }
