@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
+import { eq } from 'drizzle-orm';
 import {
   profiles as profilesTable,
   positions as positionsTable,
@@ -239,6 +240,33 @@ export function registerProfileWriteRoutes(
 
     const synced = { profile: 0, positions: 0, education: 0, skills: 0 };
 
+    // Preserve existing identity fields (handle, displayName, avatar)
+    const [existingProfile] = await db
+      .select({
+        handle: profilesTable.handle,
+        displayName: profilesTable.displayName,
+        avatarUrl: profilesTable.avatarUrl,
+      })
+      .from(profilesTable)
+      .where(eq(profilesTable.did, did))
+      .limit(1);
+
+    // If no existing row, resolve from Bluesky
+    let handle = existingProfile?.handle || '';
+    let displayName = existingProfile?.displayName ?? null;
+    let avatarUrl = existingProfile?.avatarUrl ?? null;
+
+    if (!handle) {
+      try {
+        const bskyProfile = await publicAgent.getProfile({ actor: did });
+        handle = bskyProfile.data.handle;
+        displayName = bskyProfile.data.displayName ?? null;
+        avatarUrl = bskyProfile.data.avatar ?? null;
+      } catch {
+        // Best effort — handle stays empty
+      }
+    }
+
     try {
       // Sync profile.self
       try {
@@ -253,7 +281,9 @@ export function registerProfileWriteRoutes(
           .insert(profilesTable)
           .values({
             did,
-            handle: '',
+            handle,
+            displayName,
+            avatarUrl,
             headline: sanitizeOptional(r.headline as string | undefined) ?? null,
             about: sanitizeOptional(r.about as string | undefined) ?? null,
             industry: sanitizeOptional(r.industry as string | undefined) ?? null,

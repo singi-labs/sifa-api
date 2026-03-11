@@ -222,6 +222,35 @@ export function registerImportRoutes(
     // Jetstream would eventually deliver the same data, but this avoids latency.
     // Delete existing records first (re-import case), then insert fresh data.
     try {
+      // Preserve existing profile identity fields (handle, displayName, avatar)
+      // that were set by the OAuth callback — import should only update content fields.
+      const [existingProfile] = await db
+        .select({
+          handle: profilesTable.handle,
+          displayName: profilesTable.displayName,
+          avatarUrl: profilesTable.avatarUrl,
+        })
+        .from(profilesTable)
+        .where(eq(profilesTable.did, did))
+        .limit(1);
+
+      let handle = existingProfile?.handle || '';
+      let displayName = existingProfile?.displayName ?? null;
+      let avatarUrl = existingProfile?.avatarUrl ?? null;
+
+      // If handle is missing (e.g. profile created before OAuth callback), resolve from Bluesky
+      if (!handle) {
+        try {
+          const publicAgent = new Agent('https://public.api.bsky.app');
+          const bskyProfile = await publicAgent.getProfile({ actor: did });
+          handle = bskyProfile.data.handle;
+          displayName = bskyProfile.data.displayName ?? displayName;
+          avatarUrl = bskyProfile.data.avatar ?? avatarUrl;
+        } catch {
+          // Best effort — handle stays empty
+        }
+      }
+
       await db.delete(positionsTable).where(eq(positionsTable.did, did));
       await db.delete(educationTable).where(eq(educationTable.did, did));
       await db.delete(skillsTable).where(eq(skillsTable.did, did));
@@ -231,7 +260,9 @@ export function registerImportRoutes(
           .insert(profilesTable)
           .values({
             did,
-            handle: '',
+            handle,
+            displayName,
+            avatarUrl,
             headline: cleanProfile.headline ?? null,
             about: cleanProfile.about ?? null,
             industry: cleanProfile.industry ?? null,
@@ -245,6 +276,9 @@ export function registerImportRoutes(
           .onConflictDoUpdate({
             target: profilesTable.did,
             set: {
+              handle,
+              displayName,
+              avatarUrl,
               headline: cleanProfile.headline ?? null,
               about: cleanProfile.about ?? null,
               industry: cleanProfile.industry ?? null,
