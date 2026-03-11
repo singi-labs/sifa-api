@@ -37,6 +37,7 @@ export function registerOAuthRoutes(
       try {
         url = await oauthClient.authorize(body.data.handle, {
           scope: granularScope,
+          prompt: 'login',
         });
       } catch {
         // PDS may not support granular scopes — fall back to transition:generic
@@ -46,6 +47,7 @@ export function registerOAuthRoutes(
         );
         url = await oauthClient.authorize(body.data.handle, {
           scope: 'atproto transition:generic',
+          prompt: 'login',
         });
       }
 
