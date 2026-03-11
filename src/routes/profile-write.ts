@@ -234,7 +234,10 @@ export function registerProfileWriteRoutes(
 
   // POST /api/profile/sync -- read PDS data and populate local database
   app.post('/api/profile/sync', { preHandler: requireAuth }, async (request, reply) => {
-    const { did } = getAuthContext(request);
+    const { did, session } = getAuthContext(request);
+    // Authenticated agent reads custom lexicon collections from the user's PDS.
+    // The public Bluesky API does NOT serve id.sifa.* records.
+    const pdsAgent = new Agent(session);
     const publicAgent = new Agent('https://public.api.bsky.app');
     const now = new Date();
 
@@ -270,7 +273,7 @@ export function registerProfileWriteRoutes(
     try {
       // Sync profile.self
       try {
-        const profileRes = await publicAgent.com.atproto.repo.getRecord({
+        const profileRes = await pdsAgent.com.atproto.repo.getRecord({
           repo: did,
           collection: 'id.sifa.profile.self',
           rkey: 'self',
@@ -313,7 +316,7 @@ export function registerProfileWriteRoutes(
 
       // Sync positions
       try {
-        const posRes = await publicAgent.com.atproto.repo.listRecords({
+        const posRes = await pdsAgent.com.atproto.repo.listRecords({
           repo: did,
           collection: 'id.sifa.profile.position',
           limit: 100,
@@ -364,7 +367,7 @@ export function registerProfileWriteRoutes(
 
       // Sync education
       try {
-        const eduRes = await publicAgent.com.atproto.repo.listRecords({
+        const eduRes = await pdsAgent.com.atproto.repo.listRecords({
           repo: did,
           collection: 'id.sifa.profile.education',
           limit: 100,
@@ -406,7 +409,7 @@ export function registerProfileWriteRoutes(
 
       // Sync skills
       try {
-        const skillRes = await publicAgent.com.atproto.repo.listRecords({
+        const skillRes = await pdsAgent.com.atproto.repo.listRecords({
           repo: did,
           collection: 'id.sifa.profile.skill',
           limit: 200,
