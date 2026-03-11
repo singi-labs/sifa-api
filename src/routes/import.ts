@@ -250,8 +250,22 @@ export function registerImportRoutes(
       }
 
       // Diagnostic: check DB state before transaction
-      const [preBefore] = await db.select({ did: profilesTable.did, handle: profilesTable.handle }).from(profilesTable).where(eq(profilesTable.did, did)).limit(1);
-      app.log.info({ did, handle, preBefore: preBefore ?? 'NO_ROW', cleanPositionsCount: cleanPositions.length, cleanEducationCount: cleanEducation.length, cleanSkillsCount: cleanSkills.length }, 'Import DB write-through: pre-transaction state');
+      const [preBefore] = await db
+        .select({ did: profilesTable.did, handle: profilesTable.handle })
+        .from(profilesTable)
+        .where(eq(profilesTable.did, did))
+        .limit(1);
+      app.log.info(
+        {
+          did,
+          handle,
+          preBefore: preBefore ?? 'NO_ROW',
+          cleanPositionsCount: cleanPositions.length,
+          cleanEducationCount: cleanEducation.length,
+          cleanSkillsCount: cleanSkills.length,
+        },
+        'Import DB write-through: pre-transaction state',
+      );
 
       await db.transaction(async (tx) => {
         // Delete existing child records
@@ -354,11 +368,33 @@ export function registerImportRoutes(
         }
       });
       // Diagnostic: check DB state after transaction
-      const [postProfile] = await db.select({ did: profilesTable.did, handle: profilesTable.handle }).from(profilesTable).where(eq(profilesTable.did, did)).limit(1);
-      const postPositions = await db.select({ rkey: positionsTable.rkey }).from(positionsTable).where(eq(positionsTable.did, did));
-      const postEducation = await db.select({ rkey: educationTable.rkey }).from(educationTable).where(eq(educationTable.did, did));
-      const postSkills = await db.select({ rkey: skillsTable.rkey }).from(skillsTable).where(eq(skillsTable.did, did));
-      app.log.info({ did, postProfile: postProfile ?? 'NO_ROW', postPositions: postPositions.length, postEducation: postEducation.length, postSkills: postSkills.length }, 'Import DB write-through: post-transaction state');
+      const [postProfile] = await db
+        .select({ did: profilesTable.did, handle: profilesTable.handle })
+        .from(profilesTable)
+        .where(eq(profilesTable.did, did))
+        .limit(1);
+      const postPositions = await db
+        .select({ rkey: positionsTable.rkey })
+        .from(positionsTable)
+        .where(eq(positionsTable.did, did));
+      const postEducation = await db
+        .select({ rkey: educationTable.rkey })
+        .from(educationTable)
+        .where(eq(educationTable.did, did));
+      const postSkills = await db
+        .select({ rkey: skillsTable.rkey })
+        .from(skillsTable)
+        .where(eq(skillsTable.did, did));
+      app.log.info(
+        {
+          did,
+          postProfile: postProfile ?? 'NO_ROW',
+          postPositions: postPositions.length,
+          postEducation: postEducation.length,
+          postSkills: postSkills.length,
+        },
+        'Import DB write-through: post-transaction state',
+      );
     } catch (err) {
       // Transaction rolled back — existing data preserved, PDS write already succeeded.
       const detail = err instanceof Error ? err.message : String(err);
