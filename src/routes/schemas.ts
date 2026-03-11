@@ -63,8 +63,8 @@ export const projectSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(50000).optional(),
   url: z.string().url().optional(),
-  startedAt: z.string().optional(),
-  endedAt: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 export const volunteeringSchema = z.object({
@@ -72,8 +72,8 @@ export const volunteeringSchema = z.object({
   role: z.string().max(100).optional(),
   cause: z.string().max(100).optional(),
   description: z.string().max(50000).optional(),
-  startedAt: z.string().optional(),
-  endedAt: z.string().optional(),
+  startDate: z.string().optional(),
+  endDate: z.string().optional(),
 });
 
 export const publicationSchema = z.object({
