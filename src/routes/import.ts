@@ -400,7 +400,7 @@ export function registerImportRoutes(
     }
 
     // Write to PDS
-    const BATCH_SIZE = 100;
+    const BATCH_SIZE = 50;
     try {
       for (let i = 0; i < writes.length; i += BATCH_SIZE) {
         const batch = writes.slice(i, i + BATCH_SIZE);
@@ -411,7 +411,7 @@ export function registerImportRoutes(
       app.log.error({ err, did, writeCount: writes.length }, 'PDS write failed during import');
       return reply
         .status(500)
-        .send({ error: 'ImportFailed', message: 'Failed to write to PDS', detail });
+        .send({ error: 'ImportFailed', message: `Failed to write to PDS: ${detail}` });
     }
 
     // Write-through: index into local DB so profile is immediately visible.
@@ -623,8 +623,8 @@ export function registerImportRoutes(
               name: data.name,
               description: data.description ?? null,
               url: data.url ?? null,
-              startedAt: data.startedAt ?? null,
-              endedAt: data.endedAt ?? null,
+              startedAt: data.startDate ?? null,
+              endedAt: data.endDate ?? null,
               createdAt: now,
               indexedAt: now,
             })
@@ -634,8 +634,8 @@ export function registerImportRoutes(
                 name: data.name,
                 description: data.description ?? null,
                 url: data.url ?? null,
-                startedAt: data.startedAt ?? null,
-                endedAt: data.endedAt ?? null,
+                startedAt: data.startDate ?? null,
+                endedAt: data.endDate ?? null,
                 indexedAt: now,
               },
             });
@@ -651,8 +651,8 @@ export function registerImportRoutes(
               role: data.role ?? null,
               cause: data.cause ?? null,
               description: data.description ?? null,
-              startedAt: data.startedAt ?? null,
-              endedAt: data.endedAt ?? null,
+              startedAt: data.startDate ?? null,
+              endedAt: data.endDate ?? null,
               createdAt: now,
               indexedAt: now,
             })
@@ -663,8 +663,8 @@ export function registerImportRoutes(
                 role: data.role ?? null,
                 cause: data.cause ?? null,
                 description: data.description ?? null,
-                startedAt: data.startedAt ?? null,
-                endedAt: data.endedAt ?? null,
+                startedAt: data.startDate ?? null,
+                endedAt: data.endDate ?? null,
                 indexedAt: now,
               },
             });
