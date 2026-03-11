@@ -1,9 +1,17 @@
 import type { FastifyInstance } from 'fastify';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
+import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
+import {
+  profiles as profilesTable,
+  positions as positionsTable,
+  education as educationTable,
+  skills as skillsTable,
+} from '../db/schema/index.js';
 import { profileSelfSchema, positionSchema, educationSchema, skillSchema } from './schemas.js';
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
+import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
 
 export function registerProfileWriteRoutes(
   app: FastifyInstance,
@@ -222,4 +230,189 @@ export function registerProfileWriteRoutes(
       return reply.status(200).send({ ok: true });
     },
   );
+
+  // POST /api/profile/sync -- read PDS data and populate local database
+  app.post('/api/profile/sync', { preHandler: requireAuth }, async (request, reply) => {
+    const { did } = getAuthContext(request);
+    const publicAgent = new Agent('https://public.api.bsky.app');
+    const now = new Date();
+
+    const synced = { profile: 0, positions: 0, education: 0, skills: 0 };
+
+    try {
+      // Sync profile.self
+      try {
+        const profileRes = await publicAgent.com.atproto.repo.getRecord({
+          repo: did,
+          collection: 'id.sifa.profile.self',
+          rkey: 'self',
+        });
+        const r = profileRes.data.value as Record<string, unknown>;
+        const loc = r.location as { country?: string; region?: string; city?: string } | undefined;
+        await db
+          .insert(profilesTable)
+          .values({
+            did,
+            handle: '',
+            headline: sanitizeOptional(r.headline as string | undefined) ?? null,
+            about: sanitizeOptional(r.about as string | undefined) ?? null,
+            industry: sanitizeOptional(r.industry as string | undefined) ?? null,
+            locationCountry: sanitizeOptional(loc?.country) ?? null,
+            locationRegion: sanitizeOptional(loc?.region) ?? null,
+            locationCity: sanitizeOptional(loc?.city) ?? null,
+            createdAt: now,
+            indexedAt: now,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: profilesTable.did,
+            set: {
+              headline: sanitizeOptional(r.headline as string | undefined) ?? null,
+              about: sanitizeOptional(r.about as string | undefined) ?? null,
+              industry: sanitizeOptional(r.industry as string | undefined) ?? null,
+              locationCountry: sanitizeOptional(loc?.country) ?? null,
+              locationRegion: sanitizeOptional(loc?.region) ?? null,
+              locationCity: sanitizeOptional(loc?.city) ?? null,
+              updatedAt: now,
+            },
+          });
+        synced.profile = 1;
+      } catch {
+        // No profile.self record in PDS — not an error
+      }
+
+      // Sync positions
+      try {
+        const posRes = await publicAgent.com.atproto.repo.listRecords({
+          repo: did,
+          collection: 'id.sifa.profile.position',
+          limit: 100,
+        });
+        for (const rec of posRes.data.records) {
+          const rkey = rec.uri.split('/').pop() ?? '';
+          const r = rec.value as Record<string, unknown>;
+          const loc = r.location as
+            | { country?: string; region?: string; city?: string }
+            | undefined;
+          await db
+            .insert(positionsTable)
+            .values({
+              did,
+              rkey,
+              companyName: sanitize(r.companyName as string),
+              title: sanitize(r.title as string),
+              description: sanitizeOptional(r.description as string | undefined) ?? null,
+              locationCountry: sanitizeOptional(loc?.country) ?? null,
+              locationRegion: sanitizeOptional(loc?.region) ?? null,
+              locationCity: sanitizeOptional(loc?.city) ?? null,
+              startDate: (r.startDate as string) ?? '',
+              endDate: (r.endDate as string) ?? null,
+              current: (r.current as boolean) ?? false,
+              createdAt: r.createdAt ? new Date(r.createdAt as string) : now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [positionsTable.did, positionsTable.rkey],
+              set: {
+                companyName: sanitize(r.companyName as string),
+                title: sanitize(r.title as string),
+                description: sanitizeOptional(r.description as string | undefined) ?? null,
+                locationCountry: sanitizeOptional(loc?.country) ?? null,
+                locationRegion: sanitizeOptional(loc?.region) ?? null,
+                locationCity: sanitizeOptional(loc?.city) ?? null,
+                startDate: (r.startDate as string) ?? '',
+                endDate: (r.endDate as string) ?? null,
+                current: (r.current as boolean) ?? false,
+                indexedAt: now,
+              },
+            });
+          synced.positions++;
+        }
+      } catch {
+        // No position records
+      }
+
+      // Sync education
+      try {
+        const eduRes = await publicAgent.com.atproto.repo.listRecords({
+          repo: did,
+          collection: 'id.sifa.profile.education',
+          limit: 100,
+        });
+        for (const rec of eduRes.data.records) {
+          const rkey = rec.uri.split('/').pop() ?? '';
+          const r = rec.value as Record<string, unknown>;
+          await db
+            .insert(educationTable)
+            .values({
+              did,
+              rkey,
+              institution: sanitize(r.institution as string),
+              degree: sanitizeOptional(r.degree as string | undefined) ?? null,
+              fieldOfStudy: sanitizeOptional(r.fieldOfStudy as string | undefined) ?? null,
+              description: sanitizeOptional(r.description as string | undefined) ?? null,
+              startDate: (r.startDate as string) ?? null,
+              endDate: (r.endDate as string) ?? null,
+              createdAt: r.createdAt ? new Date(r.createdAt as string) : now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [educationTable.did, educationTable.rkey],
+              set: {
+                institution: sanitize(r.institution as string),
+                degree: sanitizeOptional(r.degree as string | undefined) ?? null,
+                fieldOfStudy: sanitizeOptional(r.fieldOfStudy as string | undefined) ?? null,
+                description: sanitizeOptional(r.description as string | undefined) ?? null,
+                startDate: (r.startDate as string) ?? null,
+                endDate: (r.endDate as string) ?? null,
+                indexedAt: now,
+              },
+            });
+          synced.education++;
+        }
+      } catch {
+        // No education records
+      }
+
+      // Sync skills
+      try {
+        const skillRes = await publicAgent.com.atproto.repo.listRecords({
+          repo: did,
+          collection: 'id.sifa.profile.skill',
+          limit: 200,
+        });
+        for (const rec of skillRes.data.records) {
+          const rkey = rec.uri.split('/').pop() ?? '';
+          const r = rec.value as Record<string, unknown>;
+          await db
+            .insert(skillsTable)
+            .values({
+              did,
+              rkey,
+              skillName: sanitize(r.skillName as string),
+              category: sanitizeOptional(r.category as string | undefined) ?? null,
+              createdAt: r.createdAt ? new Date(r.createdAt as string) : now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [skillsTable.did, skillsTable.rkey],
+              set: {
+                skillName: sanitize(r.skillName as string),
+                category: sanitizeOptional(r.category as string | undefined) ?? null,
+                indexedAt: now,
+              },
+            });
+          synced.skills++;
+        }
+      } catch {
+        // No skill records
+      }
+    } catch (err) {
+      app.log.error({ err, did }, 'Profile sync from PDS failed');
+      return reply.status(500).send({ error: 'SyncFailed', message: 'Failed to sync from PDS' });
+    }
+
+    app.log.info({ did, synced }, 'Profile synced from PDS');
+    return reply.send({ synced });
+  });
 }
