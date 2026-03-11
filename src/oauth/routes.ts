@@ -120,7 +120,10 @@ export function registerOAuthRoutes(
         isNewUser = !existing;
 
         const publicAgent = new Agent('https://public.api.bsky.app');
-        const bskyProfile = await publicAgent.getProfile({ actor: did });
+        const bskyProfile = await publicAgent.getProfile(
+          { actor: did },
+          { signal: AbortSignal.timeout(3000) },
+        );
         await db
           .insert(profiles)
           .values({
@@ -228,7 +231,10 @@ export function registerOAuthRoutes(
         if (!profile) {
           // Profile not yet synced locally — resolve from Bluesky and trigger sync
           const publicAgent = new Agent('https://public.api.bsky.app');
-          const bskyProfile = await publicAgent.getProfile({ actor: row.did });
+          const bskyProfile = await publicAgent.getProfile(
+            { actor: row.did },
+            { signal: AbortSignal.timeout(3000) },
+          );
 
           // Fire-and-forget: persist for next request
           const now = new Date();

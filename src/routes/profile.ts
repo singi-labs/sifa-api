@@ -77,7 +77,10 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         // Fall back to public Bluesky API for ATproto users without Sifa-specific data
         try {
           const publicAgent = new Agent('https://public.api.bsky.app');
-          const bskyProfile = await publicAgent.getProfile({ actor: handleOrDid });
+          const bskyProfile = await publicAgent.getProfile(
+            { actor: handleOrDid },
+            { signal: AbortSignal.timeout(3000) },
+          );
           return reply.send({
             did: bskyProfile.data.did,
             handle: bskyProfile.data.handle,

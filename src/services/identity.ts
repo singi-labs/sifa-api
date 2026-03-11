@@ -10,12 +10,18 @@ export async function resolveHandleOrDid(
   const agent = new Agent('https://public.api.bsky.app');
 
   if (isDid(handleOrDid)) {
-    const profile = await agent.getProfile({ actor: handleOrDid });
+    const profile = await agent.getProfile(
+      { actor: handleOrDid },
+      { signal: AbortSignal.timeout(3000) },
+    );
     return { did: profile.data.did, handle: profile.data.handle };
   }
 
   if (isHandle(handleOrDid)) {
-    const resolved = await agent.resolveHandle({ handle: handleOrDid });
+    const resolved = await agent.resolveHandle(
+      { handle: handleOrDid },
+      { signal: AbortSignal.timeout(3000) },
+    );
     return { did: resolved.data.did, handle: handleOrDid };
   }
 

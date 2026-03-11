@@ -287,7 +287,10 @@ export function registerProfileWriteRoutes(
 
     if (!handle) {
       try {
-        const bskyProfile = await publicAgent.getProfile({ actor: did });
+        const bskyProfile = await publicAgent.getProfile(
+          { actor: did },
+          { signal: AbortSignal.timeout(3000) },
+        );
         handle = bskyProfile.data.handle;
         displayName = bskyProfile.data.displayName ?? null;
         avatarUrl = bskyProfile.data.avatar ?? null;
@@ -299,7 +302,10 @@ export function registerProfileWriteRoutes(
 
     if (!bskyBio) {
       try {
-        const bskyRes = await publicAgent.getProfile({ actor: did });
+        const bskyRes = await publicAgent.getProfile(
+          { actor: did },
+          { signal: AbortSignal.timeout(3000) },
+        );
         bskyBio = bskyRes.data.description ?? null;
       } catch {
         // Best effort
