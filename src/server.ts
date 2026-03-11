@@ -28,6 +28,13 @@ import { createEducationIndexer } from './jetstream/indexers/education.js';
 import { createSkillIndexer } from './jetstream/indexers/skill.js';
 import { createFollowIndexer } from './jetstream/indexers/follow.js';
 import { createExternalAccountIndexer } from './jetstream/indexers/external-account.js';
+import { createCertificationIndexer } from './jetstream/indexers/certification.js';
+import { createProjectIndexer } from './jetstream/indexers/project.js';
+import { createVolunteeringIndexer } from './jetstream/indexers/volunteering.js';
+import { createPublicationIndexer } from './jetstream/indexers/publication.js';
+import { createCourseIndexer } from './jetstream/indexers/course.js';
+import { createHonorIndexer } from './jetstream/indexers/honor.js';
+import { createLanguageIndexer } from './jetstream/indexers/language.js';
 import { createCursorManager } from './jetstream/cursor.js';
 
 export async function buildServer(config: Env) {
@@ -100,6 +107,13 @@ export async function buildServer(config: Env) {
       positionIndexer: createPositionIndexer(db),
       educationIndexer: createEducationIndexer(db),
       skillIndexer: createSkillIndexer(db),
+      certificationIndexer: createCertificationIndexer(db),
+      projectIndexer: createProjectIndexer(db),
+      volunteeringIndexer: createVolunteeringIndexer(db),
+      publicationIndexer: createPublicationIndexer(db),
+      courseIndexer: createCourseIndexer(db),
+      honorIndexer: createHonorIndexer(db),
+      languageIndexer: createLanguageIndexer(db),
       followIndexer: createFollowIndexer(db),
       externalAccountIndexer: createExternalAccountIndexer(db),
     });

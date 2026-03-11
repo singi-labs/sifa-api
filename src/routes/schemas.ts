@@ -50,6 +50,58 @@ export const skillSchema = z.object({
   category: z.string().max(100).optional(),
 });
 
+export const certificationSchema = z.object({
+  name: z.string().min(1).max(100),
+  authority: z.string().max(100).optional(),
+  credentialId: z.string().max(100).optional(),
+  credentialUrl: z.string().url().optional(),
+  issuedAt: z.string().optional(),
+  expiresAt: z.string().optional(),
+});
+
+export const projectSchema = z.object({
+  name: z.string().min(1).max(100),
+  description: z.string().max(50000).optional(),
+  url: z.string().url().optional(),
+  startedAt: z.string().optional(),
+  endedAt: z.string().optional(),
+});
+
+export const volunteeringSchema = z.object({
+  organization: z.string().min(1).max(100),
+  role: z.string().max(100).optional(),
+  cause: z.string().max(100).optional(),
+  description: z.string().max(50000).optional(),
+  startedAt: z.string().optional(),
+  endedAt: z.string().optional(),
+});
+
+export const publicationSchema = z.object({
+  title: z.string().min(1).max(200),
+  publisher: z.string().max(100).optional(),
+  url: z.string().url().optional(),
+  description: z.string().max(50000).optional(),
+  publishedAt: z.string().optional(),
+});
+
+export const courseSchema = z.object({
+  name: z.string().min(1).max(200),
+  number: z.string().max(50).optional(),
+  institution: z.string().max(100).optional(),
+});
+
+export const honorSchema = z.object({
+  title: z.string().min(1).max(200),
+  issuer: z.string().max(100).optional(),
+  description: z.string().max(50000).optional(),
+  awardedAt: z.string().optional(),
+});
+
+export const languageSchema = z.object({
+  name: z.string().min(1).max(64),
+  proficiency: z.string().max(50).optional(),
+});
+
 export const VALID_PLATFORMS = [
   'rss',
   'fediverse',
