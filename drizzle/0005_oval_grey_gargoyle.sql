@@ -23,7 +23,7 @@ CREATE TABLE "courses" (
 	CONSTRAINT "courses_did_rkey_pk" PRIMARY KEY("did","rkey")
 );
 --> statement-breakpoint
-CREATE TABLE "external_account_verifications" (
+CREATE TABLE IF NOT EXISTS "external_account_verifications" (
 	"did" text NOT NULL,
 	"url" text NOT NULL,
 	"verified" boolean DEFAULT false NOT NULL,
@@ -32,7 +32,7 @@ CREATE TABLE "external_account_verifications" (
 	CONSTRAINT "external_account_verifications_did_url_pk" PRIMARY KEY("did","url")
 );
 --> statement-breakpoint
-CREATE TABLE "external_accounts" (
+CREATE TABLE IF NOT EXISTS "external_accounts" (
 	"did" text NOT NULL,
 	"rkey" text NOT NULL,
 	"platform" text NOT NULL,
@@ -106,11 +106,14 @@ CREATE TABLE "volunteering" (
 	CONSTRAINT "volunteering_did_rkey_pk" PRIMARY KEY("did","rkey")
 );
 --> statement-breakpoint
-ALTER TABLE "profiles" ADD COLUMN "display_name" text;--> statement-breakpoint
-ALTER TABLE "profiles" ADD COLUMN "avatar_url" text;--> statement-breakpoint
+ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "display_name" text;--> statement-breakpoint
+ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "avatar_url" text;--> statement-breakpoint
 ALTER TABLE "certifications" ADD CONSTRAINT "certifications_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "courses" ADD CONSTRAINT "courses_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "external_accounts" ADD CONSTRAINT "external_accounts_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "external_accounts" ADD CONSTRAINT "external_accounts_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
 ALTER TABLE "honors" ADD CONSTRAINT "honors_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "languages" ADD CONSTRAINT "languages_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "projects" ADD CONSTRAINT "projects_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
