@@ -1,4 +1,4 @@
-CREATE TABLE "education" (
+CREATE TABLE IF NOT EXISTS "education" (
 	"did" text NOT NULL,
 	"rkey" text NOT NULL,
 	"institution" text NOT NULL,
@@ -13,7 +13,7 @@ CREATE TABLE "education" (
 	CONSTRAINT "education_did_rkey_pk" PRIMARY KEY("did","rkey")
 );
 --> statement-breakpoint
-CREATE TABLE "positions" (
+CREATE TABLE IF NOT EXISTS "positions" (
 	"did" text NOT NULL,
 	"rkey" text NOT NULL,
 	"company_name" text NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE "positions" (
 	CONSTRAINT "positions_did_rkey_pk" PRIMARY KEY("did","rkey")
 );
 --> statement-breakpoint
-CREATE TABLE "profiles" (
+CREATE TABLE IF NOT EXISTS "profiles" (
 	"did" text PRIMARY KEY NOT NULL,
 	"handle" text NOT NULL,
 	"headline" text,
@@ -51,7 +51,7 @@ CREATE TABLE "profiles" (
 	"updated_at" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-CREATE TABLE "skills" (
+CREATE TABLE IF NOT EXISTS "skills" (
 	"did" text NOT NULL,
 	"rkey" text NOT NULL,
 	"skill_name" text NOT NULL,
@@ -61,7 +61,16 @@ CREATE TABLE "skills" (
 	CONSTRAINT "skills_did_rkey_pk" PRIMARY KEY("did","rkey")
 );
 --> statement-breakpoint
-ALTER TABLE "education" ADD CONSTRAINT "education_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "positions" ADD CONSTRAINT "positions_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "skills" ADD CONSTRAINT "skills_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-CREATE INDEX "idx_profiles_handle" ON "profiles" USING btree ("handle");
+DO $$ BEGIN
+  ALTER TABLE "education" ADD CONSTRAINT "education_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "positions" ADD CONSTRAINT "positions_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "skills" ADD CONSTRAINT "skills_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS "idx_profiles_handle" ON "profiles" USING btree ("handle");
