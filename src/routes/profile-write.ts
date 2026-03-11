@@ -277,6 +277,7 @@ export function registerProfileWriteRoutes(
     let handle = existingProfile?.handle || '';
     let displayName = existingProfile?.displayName ?? null;
     let avatarUrl = existingProfile?.avatarUrl ?? null;
+    let bskyBio: string | null = null;
 
     if (!handle) {
       try {
@@ -284,8 +285,18 @@ export function registerProfileWriteRoutes(
         handle = bskyProfile.data.handle;
         displayName = bskyProfile.data.displayName ?? null;
         avatarUrl = bskyProfile.data.avatar ?? null;
+        bskyBio = bskyProfile.data.description ?? null;
       } catch {
         // Best effort — handle stays empty
+      }
+    }
+
+    if (!bskyBio) {
+      try {
+        const bskyRes = await publicAgent.getProfile({ actor: did });
+        bskyBio = bskyRes.data.description ?? null;
+      } catch {
+        // Best effort
       }
     }
 
@@ -330,7 +341,32 @@ export function registerProfileWriteRoutes(
           });
         synced.profile = 1;
       } catch {
-        // No profile.self record in PDS — not an error
+        // No profile.self record in PDS — seed about from Bluesky bio if available
+        if (bskyBio) {
+          const sanitizedBio = sanitizeOptional(bskyBio) ?? null;
+          await db
+            .insert(profilesTable)
+            .values({
+              did,
+              handle,
+              displayName,
+              avatarUrl,
+              about: sanitizedBio,
+              createdAt: now,
+              indexedAt: now,
+              updatedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: profilesTable.did,
+              set: {
+                handle: handle || undefined,
+                displayName,
+                avatarUrl,
+                updatedAt: now,
+              },
+            });
+          synced.profile = 1;
+        }
       }
 
       // Sync positions
