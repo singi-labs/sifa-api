@@ -289,7 +289,7 @@ export function registerProfileWriteRoutes(
           limit: 100,
         });
         for (const rec of posRes.data.records) {
-          const rkey = rec.uri.split('/').pop()!;
+          const rkey = rec.uri.split('/').pop() ?? '';
           const r = rec.value as Record<string, unknown>;
           const loc = r.location as
             | { country?: string; region?: string; city?: string }
@@ -340,7 +340,7 @@ export function registerProfileWriteRoutes(
           limit: 100,
         });
         for (const rec of eduRes.data.records) {
-          const rkey = rec.uri.split('/').pop()!;
+          const rkey = rec.uri.split('/').pop() ?? '';
           const r = rec.value as Record<string, unknown>;
           await db
             .insert(educationTable)
@@ -382,7 +382,7 @@ export function registerProfileWriteRoutes(
           limit: 200,
         });
         for (const rec of skillRes.data.records) {
-          const rkey = rec.uri.split('/').pop()!;
+          const rkey = rec.uri.split('/').pop() ?? '';
           const r = rec.value as Record<string, unknown>;
           await db
             .insert(skillsTable)
