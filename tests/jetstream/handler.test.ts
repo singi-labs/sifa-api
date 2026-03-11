@@ -1,11 +1,12 @@
 import { describe, it, expect, vi } from 'vitest';
 import { createEventRouter } from '../../src/jetstream/handler.js';
 
-// Mock db — identity events upsert into profiles table
+// Mock db — identity events upsert into profiles table, child indexers ensure profile row
 const mockDb = {
   insert: vi.fn().mockReturnValue({
     values: vi.fn().mockReturnValue({
       onConflictDoUpdate: vi.fn(),
+      onConflictDoNothing: vi.fn(),
     }),
   }),
 } as unknown as Parameters<typeof createEventRouter>[0];

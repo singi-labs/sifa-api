@@ -54,6 +54,21 @@ export function createEventRouter(db: Database, indexers: IndexerMap) {
       return;
     }
 
+    // Ensure profile row exists before child record indexers run (FK constraint).
+    // Skip for profile indexer itself and for delete operations.
+    if (indexerKey !== 'profileIndexer' && event.commit.operation !== 'delete') {
+      await db
+        .insert(profiles)
+        .values({
+          did: event.did,
+          handle: '',
+          createdAt: new Date(),
+          indexedAt: new Date(),
+          updatedAt: new Date(),
+        })
+        .onConflictDoNothing();
+    }
+
     await indexer(event);
   };
 }

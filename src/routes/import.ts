@@ -127,6 +127,7 @@ export function registerImportRoutes(
     // Delete existing PDS records before creating new ones (supports re-import)
     const agent = new Agent(session);
     const deletes: ApplyWritesOp[] = [];
+    let profileExistsOnPds = false;
 
     try {
       const collections = [
@@ -146,17 +147,15 @@ export function registerImportRoutes(
         }
       }
 
-      // Check if profile.self exists — if so, we'll update instead of create
+      // Check if profile.self exists — if so, we'll use update (not delete+create)
+      // to avoid a Jetstream delete event that cascades and wipes the local DB.
       try {
         await agent.com.atproto.repo.getRecord({
           repo: did,
           collection: 'id.sifa.profile.self',
           rkey: 'self',
         });
-        // Profile exists — mark for update
-        if (cleanProfile) {
-          deletes.push(buildApplyWritesOp('delete', 'id.sifa.profile.self', 'self'));
-        }
+        profileExistsOnPds = true;
       } catch {
         // Profile doesn't exist yet — create is fine
       }
@@ -169,10 +168,15 @@ export function registerImportRoutes(
 
     if (cleanProfile) {
       writes.push(
-        buildApplyWritesOp('create', 'id.sifa.profile.self', 'self', {
-          ...cleanProfile,
-          createdAt: nowIso,
-        }),
+        buildApplyWritesOp(
+          profileExistsOnPds ? 'update' : 'create',
+          'id.sifa.profile.self',
+          'self',
+          {
+            ...cleanProfile,
+            createdAt: nowIso,
+          },
+        ),
       );
     }
 
@@ -248,24 +252,6 @@ export function registerImportRoutes(
           app.log.warn({ did }, 'Failed to resolve handle from Bluesky during import');
         }
       }
-
-      // Diagnostic: check DB state before transaction
-      const [preBefore] = await db
-        .select({ did: profilesTable.did, handle: profilesTable.handle })
-        .from(profilesTable)
-        .where(eq(profilesTable.did, did))
-        .limit(1);
-      app.log.info(
-        {
-          did,
-          handle,
-          preBefore: preBefore ?? 'NO_ROW',
-          cleanPositionsCount: cleanPositions.length,
-          cleanEducationCount: cleanEducation.length,
-          cleanSkillsCount: cleanSkills.length,
-        },
-        'Import DB write-through: pre-transaction state',
-      );
 
       await db.transaction(async (tx) => {
         // Delete existing child records
@@ -367,34 +353,6 @@ export function registerImportRoutes(
           );
         }
       });
-      // Diagnostic: check DB state after transaction
-      const [postProfile] = await db
-        .select({ did: profilesTable.did, handle: profilesTable.handle })
-        .from(profilesTable)
-        .where(eq(profilesTable.did, did))
-        .limit(1);
-      const postPositions = await db
-        .select({ rkey: positionsTable.rkey })
-        .from(positionsTable)
-        .where(eq(positionsTable.did, did));
-      const postEducation = await db
-        .select({ rkey: educationTable.rkey })
-        .from(educationTable)
-        .where(eq(educationTable.did, did));
-      const postSkills = await db
-        .select({ rkey: skillsTable.rkey })
-        .from(skillsTable)
-        .where(eq(skillsTable.did, did));
-      app.log.info(
-        {
-          did,
-          postProfile: postProfile ?? 'NO_ROW',
-          postPositions: postPositions.length,
-          postEducation: postEducation.length,
-          postSkills: postSkills.length,
-        },
-        'Import DB write-through: post-transaction state',
-      );
     } catch (err) {
       // Transaction rolled back — existing data preserved, PDS write already succeeded.
       const detail = err instanceof Error ? err.message : String(err);

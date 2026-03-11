@@ -19,8 +19,25 @@ export function createProfileIndexer(db: Database) {
     const { operation, record } = commit;
 
     if (operation === 'delete') {
-      await db.delete(profiles).where(eq(profiles.did, did));
-      logger.info({ did }, 'Deleted profile');
+      // Clear profile fields but keep the row — deleting it would cascade to
+      // positions/education/skills via FK onDelete:'cascade', wiping all data.
+      await db
+        .update(profiles)
+        .set({
+          headline: null,
+          about: null,
+          industry: null,
+          locationCountry: null,
+          locationRegion: null,
+          locationCity: null,
+          website: null,
+          openTo: null,
+          preferredWorkplace: null,
+          langs: null,
+          updatedAt: new Date(),
+        })
+        .where(eq(profiles.did, did));
+      logger.info({ did }, 'Cleared profile fields (row preserved)');
       return;
     }
 
