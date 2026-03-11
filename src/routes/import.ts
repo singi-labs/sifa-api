@@ -219,11 +219,10 @@ export function registerImportRoutes(
     }
 
     // Write-through: index into local DB so profile is immediately visible.
-    // Jetstream would eventually deliver the same data, but this avoids latency.
-    // Delete existing records first (re-import case), then insert fresh data.
+    // Wrapped in a transaction so deletes roll back if inserts fail.
+    let dbWriteWarning: string | undefined;
     try {
-      // Preserve existing profile identity fields (handle, displayName, avatar)
-      // that were set by the OAuth callback — import should only update content fields.
+      // Resolve identity fields: read from existing profile row, fall back to Bluesky
       const [existingProfile] = await db
         .select({
           handle: profilesTable.handle,
@@ -238,7 +237,6 @@ export function registerImportRoutes(
       let displayName = existingProfile?.displayName ?? null;
       let avatarUrl = existingProfile?.avatarUrl ?? null;
 
-      // If handle is missing (e.g. profile created before OAuth callback), resolve from Bluesky
       if (!handle) {
         try {
           const publicAgent = new Agent('https://public.api.bsky.app');
@@ -247,130 +245,120 @@ export function registerImportRoutes(
           displayName = bskyProfile.data.displayName ?? displayName;
           avatarUrl = bskyProfile.data.avatar ?? avatarUrl;
         } catch {
-          // Best effort — handle stays empty
+          app.log.warn({ did }, 'Failed to resolve handle from Bluesky during import');
         }
       }
 
-      await db.delete(positionsTable).where(eq(positionsTable.did, did));
-      await db.delete(educationTable).where(eq(educationTable.did, did));
-      await db.delete(skillsTable).where(eq(skillsTable.did, did));
+      await db.transaction(async (tx) => {
+        // Delete existing child records
+        await tx.delete(positionsTable).where(eq(positionsTable.did, did));
+        await tx.delete(educationTable).where(eq(educationTable.did, did));
+        await tx.delete(skillsTable).where(eq(skillsTable.did, did));
 
-      // Always ensure the profile row has identity fields, even without LinkedIn profile data
-      if (handle && (!existingProfile || !existingProfile.handle)) {
-        await db
+        // Ensure profile row exists (FK target for child records)
+        const profileValues = {
+          did,
+          handle,
+          displayName,
+          avatarUrl,
+          headline: cleanProfile?.headline ?? null,
+          about: cleanProfile?.about ?? null,
+          industry: cleanProfile?.industry ?? null,
+          locationCountry: normalizeLocation(cleanProfile?.location)?.country ?? null,
+          locationRegion: normalizeLocation(cleanProfile?.location)?.region ?? null,
+          locationCity: normalizeLocation(cleanProfile?.location)?.city ?? null,
+          createdAt: now,
+          indexedAt: now,
+          updatedAt: now,
+        };
+
+        await tx
           .insert(profilesTable)
-          .values({
-            did,
-            handle,
-            displayName,
-            avatarUrl,
-            createdAt: now,
-            indexedAt: now,
-            updatedAt: now,
-          })
+          .values(profileValues)
           .onConflictDoUpdate({
             target: profilesTable.did,
             set: {
-              handle,
+              handle: handle || undefined,
               displayName,
               avatarUrl,
+              ...(cleanProfile
+                ? {
+                    headline: cleanProfile.headline ?? null,
+                    about: cleanProfile.about ?? null,
+                    industry: cleanProfile.industry ?? null,
+                    locationCountry: normalizeLocation(cleanProfile.location)?.country ?? null,
+                    locationRegion: normalizeLocation(cleanProfile.location)?.region ?? null,
+                    locationCity: normalizeLocation(cleanProfile.location)?.city ?? null,
+                  }
+                : {}),
               updatedAt: now,
             },
           });
-      }
 
-      if (cleanProfile) {
-        const loc = normalizeLocation(cleanProfile.location);
-        await db
-          .insert(profilesTable)
-          .values({
-            did,
-            handle,
-            displayName,
-            avatarUrl,
-            headline: cleanProfile.headline ?? null,
-            about: cleanProfile.about ?? null,
-            industry: cleanProfile.industry ?? null,
-            locationCountry: loc?.country ?? null,
-            locationRegion: loc?.region ?? null,
-            locationCity: loc?.city ?? null,
-            createdAt: now,
-            indexedAt: now,
-            updatedAt: now,
-          })
-          .onConflictDoUpdate({
-            target: profilesTable.did,
-            set: {
-              handle,
-              displayName,
-              avatarUrl,
-              headline: cleanProfile.headline ?? null,
-              about: cleanProfile.about ?? null,
-              industry: cleanProfile.industry ?? null,
-              locationCountry: loc?.country ?? null,
-              locationRegion: loc?.region ?? null,
-              locationCity: loc?.city ?? null,
-              updatedAt: now,
-            },
-          });
-      }
+        // Insert child records
+        if (cleanPositions.length > 0) {
+          await tx.insert(positionsTable).values(
+            cleanPositions.map(({ data, rkey }) => {
+              const loc = normalizeLocation(data.location);
+              return {
+                did,
+                rkey,
+                companyName: data.companyName,
+                title: data.title,
+                description: data.description ?? null,
+                locationCountry: loc?.country ?? null,
+                locationRegion: loc?.region ?? null,
+                locationCity: loc?.city ?? null,
+                startDate: data.startDate ?? '',
+                endDate: data.endDate ?? null,
+                current: data.current ?? false,
+                createdAt: now,
+                indexedAt: now,
+              };
+            }),
+          );
+        }
 
-      if (cleanPositions.length > 0) {
-        await db.insert(positionsTable).values(
-          cleanPositions.map(({ data, rkey }) => {
-            const loc = normalizeLocation(data.location);
-            return {
+        if (cleanEducation.length > 0) {
+          await tx.insert(educationTable).values(
+            cleanEducation.map(({ data, rkey }) => ({
               did,
               rkey,
-              companyName: data.companyName,
-              title: data.title,
+              institution: data.institution,
+              degree: data.degree ?? null,
+              fieldOfStudy: data.fieldOfStudy ?? null,
               description: data.description ?? null,
-              locationCountry: loc?.country ?? null,
-              locationRegion: loc?.region ?? null,
-              locationCity: loc?.city ?? null,
-              startDate: data.startDate ?? '',
+              startDate: data.startDate ?? null,
               endDate: data.endDate ?? null,
-              current: data.current ?? false,
               createdAt: now,
               indexedAt: now,
-            };
-          }),
-        );
-      }
+            })),
+          );
+        }
 
-      if (cleanEducation.length > 0) {
-        await db.insert(educationTable).values(
-          cleanEducation.map(({ data, rkey }) => ({
-            did,
-            rkey,
-            institution: data.institution,
-            degree: data.degree ?? null,
-            fieldOfStudy: data.fieldOfStudy ?? null,
-            description: data.description ?? null,
-            startDate: data.startDate ?? null,
-            endDate: data.endDate ?? null,
-            createdAt: now,
-            indexedAt: now,
-          })),
-        );
-      }
-
-      if (cleanSkills.length > 0) {
-        await db.insert(skillsTable).values(
-          cleanSkills.map(({ data, rkey }) => ({
-            did,
-            rkey,
-            skillName: data.skillName,
-            category: data.category ?? null,
-            createdAt: now,
-            indexedAt: now,
-          })),
-        );
-      }
+        if (cleanSkills.length > 0) {
+          await tx.insert(skillsTable).values(
+            cleanSkills.map(({ data, rkey }) => ({
+              did,
+              rkey,
+              skillName: data.skillName,
+              category: data.category ?? null,
+              createdAt: now,
+              indexedAt: now,
+            })),
+          );
+        }
+      });
     } catch (err) {
-      // DB write-through is best-effort; PDS write already succeeded.
-      // Jetstream will eventually deliver the data if this fails.
-      app.log.error({ err, did }, 'Import DB write-through failed (PDS write succeeded)');
+      // Transaction rolled back — existing data preserved, PDS write already succeeded.
+      const detail = err instanceof Error ? err.message : String(err);
+      app.log.error(
+        { err, did, detail },
+        'Import DB write-through failed (transaction rolled back, PDS write succeeded)',
+      );
+      dbWriteWarning =
+        'Your data was saved to your Personal Data Server but could not be cached locally. ' +
+        'It will appear on your profile shortly via background sync.';
     }
 
     return reply.status(200).send({
@@ -380,6 +368,7 @@ export function registerImportRoutes(
         education: education.length,
         skills: skills.length,
       },
+      ...(dbWriteWarning ? { warning: dbWriteWarning } : {}),
     });
   });
 }
