@@ -1,9 +1,16 @@
 import type { FastifyInstance } from 'fastify';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
+import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
 import { z } from 'zod';
+import { eq } from 'drizzle-orm';
 import { profileSelfSchema, positionSchema, educationSchema, skillSchema } from './schemas.js';
-import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
+import {
+  generateTid,
+  buildApplyWritesOp,
+  writeToUserPds,
+  type ApplyWritesOp,
+} from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
 import {
@@ -117,8 +124,48 @@ export function registerImportRoutes(
       rkey: generateTid(),
     }));
 
-    // Build PDS write operations
-    const writes: ReturnType<typeof buildApplyWritesOp>[] = [];
+    // Delete existing PDS records before creating new ones (supports re-import)
+    const agent = new Agent(session);
+    const deletes: ApplyWritesOp[] = [];
+
+    try {
+      const collections = [
+        'id.sifa.profile.position',
+        'id.sifa.profile.education',
+        'id.sifa.profile.skill',
+      ];
+      for (const collection of collections) {
+        const existing = await agent.com.atproto.repo.listRecords({
+          repo: did,
+          collection,
+          limit: 100,
+        });
+        for (const rec of existing.data.records) {
+          const rkey = rec.uri.split('/').pop() ?? '';
+          if (rkey) deletes.push(buildApplyWritesOp('delete', collection, rkey));
+        }
+      }
+
+      // Check if profile.self exists — if so, we'll update instead of create
+      try {
+        await agent.com.atproto.repo.getRecord({
+          repo: did,
+          collection: 'id.sifa.profile.self',
+          rkey: 'self',
+        });
+        // Profile exists — mark for update
+        if (cleanProfile) {
+          deletes.push(buildApplyWritesOp('delete', 'id.sifa.profile.self', 'self'));
+        }
+      } catch {
+        // Profile doesn't exist yet — create is fine
+      }
+    } catch (err) {
+      app.log.warn({ err, did }, 'Failed to list existing PDS records, proceeding with create');
+    }
+
+    // Build PDS write operations: deletes first, then creates
+    const writes: ApplyWritesOp[] = [...deletes];
 
     if (cleanProfile) {
       writes.push(
@@ -173,7 +220,11 @@ export function registerImportRoutes(
 
     // Write-through: index into local DB so profile is immediately visible.
     // Jetstream would eventually deliver the same data, but this avoids latency.
+    // Delete existing records first (re-import case), then insert fresh data.
     try {
+      await db.delete(positionsTable).where(eq(positionsTable.did, did));
+      await db.delete(educationTable).where(eq(educationTable.did, did));
+      await db.delete(skillsTable).where(eq(skillsTable.did, did));
       if (cleanProfile) {
         const loc = normalizeLocation(cleanProfile.location);
         await db
