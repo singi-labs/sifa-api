@@ -1,4 +1,4 @@
-CREATE TABLE "certifications" (
+CREATE TABLE IF NOT EXISTS "certifications" (
 	"did" text NOT NULL,
 	"rkey" text NOT NULL,
 	"name" text NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE "certifications" (
 	CONSTRAINT "certifications_did_rkey_pk" PRIMARY KEY("did","rkey")
 );
 --> statement-breakpoint
-CREATE TABLE "courses" (
+CREATE TABLE IF NOT EXISTS "courses" (
 	"did" text NOT NULL,
 	"rkey" text NOT NULL,
 	"name" text NOT NULL,
@@ -44,7 +44,7 @@ CREATE TABLE IF NOT EXISTS "external_accounts" (
 	CONSTRAINT "external_accounts_did_rkey_pk" PRIMARY KEY("did","rkey")
 );
 --> statement-breakpoint
-CREATE TABLE "honors" (
+CREATE TABLE IF NOT EXISTS "honors" (
 	"did" text NOT NULL,
 	"rkey" text NOT NULL,
 	"title" text NOT NULL,
@@ -56,7 +56,7 @@ CREATE TABLE "honors" (
 	CONSTRAINT "honors_did_rkey_pk" PRIMARY KEY("did","rkey")
 );
 --> statement-breakpoint
-CREATE TABLE "languages" (
+CREATE TABLE IF NOT EXISTS "languages" (
 	"did" text NOT NULL,
 	"rkey" text NOT NULL,
 	"name" text NOT NULL,
@@ -66,7 +66,7 @@ CREATE TABLE "languages" (
 	CONSTRAINT "languages_did_rkey_pk" PRIMARY KEY("did","rkey")
 );
 --> statement-breakpoint
-CREATE TABLE "projects" (
+CREATE TABLE IF NOT EXISTS "projects" (
 	"did" text NOT NULL,
 	"rkey" text NOT NULL,
 	"name" text NOT NULL,
@@ -79,7 +79,7 @@ CREATE TABLE "projects" (
 	CONSTRAINT "projects_did_rkey_pk" PRIMARY KEY("did","rkey")
 );
 --> statement-breakpoint
-CREATE TABLE "publications" (
+CREATE TABLE IF NOT EXISTS "publications" (
 	"did" text NOT NULL,
 	"rkey" text NOT NULL,
 	"title" text NOT NULL,
@@ -92,7 +92,7 @@ CREATE TABLE "publications" (
 	CONSTRAINT "publications_did_rkey_pk" PRIMARY KEY("did","rkey")
 );
 --> statement-breakpoint
-CREATE TABLE "volunteering" (
+CREATE TABLE IF NOT EXISTS "volunteering" (
 	"did" text NOT NULL,
 	"rkey" text NOT NULL,
 	"organization" text NOT NULL,
@@ -108,14 +108,35 @@ CREATE TABLE "volunteering" (
 --> statement-breakpoint
 ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "display_name" text;--> statement-breakpoint
 ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "avatar_url" text;--> statement-breakpoint
-ALTER TABLE "certifications" ADD CONSTRAINT "certifications_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "courses" ADD CONSTRAINT "courses_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "certifications" ADD CONSTRAINT "certifications_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "courses" ADD CONSTRAINT "courses_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
 DO $$ BEGIN
   ALTER TABLE "external_accounts" ADD CONSTRAINT "external_accounts_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
 EXCEPTION WHEN duplicate_object THEN NULL;
 END $$;--> statement-breakpoint
-ALTER TABLE "honors" ADD CONSTRAINT "honors_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "languages" ADD CONSTRAINT "languages_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "projects" ADD CONSTRAINT "projects_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "publications" ADD CONSTRAINT "publications_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "volunteering" ADD CONSTRAINT "volunteering_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
+DO $$ BEGIN
+  ALTER TABLE "honors" ADD CONSTRAINT "honors_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "languages" ADD CONSTRAINT "languages_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "projects" ADD CONSTRAINT "projects_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "publications" ADD CONSTRAINT "publications_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;--> statement-breakpoint
+DO $$ BEGIN
+  ALTER TABLE "volunteering" ADD CONSTRAINT "volunteering_did_profiles_did_fk" FOREIGN KEY ("did") REFERENCES "public"."profiles"("did") ON DELETE cascade ON UPDATE no action;
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
