@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { Agent } from '@atproto/api';
+import { z } from 'zod';
 import type { Database } from '../db/index.js';
 import { eq } from 'drizzle-orm';
 import {
@@ -20,6 +21,11 @@ import { profileSelfSchema, positionSchema, educationSchema, skillSchema } from 
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
+
+const overrideSchema = z.object({
+  headline: z.string().max(300).nullish(),
+  about: z.string().max(50000).nullish(),
+});
 
 export function registerProfileWriteRoutes(
   app: FastifyInstance,
@@ -774,5 +780,52 @@ export function registerProfileWriteRoutes(
 
     app.log.info({ did, synced }, 'Profile synced from PDS');
     return reply.send({ synced });
+  });
+
+  // PUT /api/profile/override -- set or clear AppView-local overrides
+  app.put('/api/profile/override', { preHandler: requireAuth }, async (request, reply) => {
+    const parsed = overrideSchema.safeParse(request.body);
+    if (!parsed.success) {
+      return reply.status(400).send({ error: 'ValidationError', issues: parsed.error.issues });
+    }
+
+    const { did } = getAuthContext(request);
+    const updates: Record<string, string | null> = {};
+
+    // Only update fields that were explicitly sent in the request body
+    const body = request.body as Record<string, unknown>;
+    if ('headline' in body) {
+      updates.headlineOverride = parsed.data.headline?.trim() || null;
+    }
+    if ('about' in body) {
+      updates.aboutOverride = parsed.data.about?.trim() || null;
+    }
+
+    if (Object.keys(updates).length === 0) {
+      return reply.status(400).send({ error: 'ValidationError', message: 'No fields to update' });
+    }
+
+    await db
+      .update(profilesTable)
+      .set({ ...updates, updatedAt: new Date() })
+      .where(eq(profilesTable.did, did));
+
+    return reply.status(200).send({ ok: true });
+  });
+
+  // DELETE /api/profile/override -- reset all overrides to ATProto source
+  app.delete('/api/profile/override', { preHandler: requireAuth }, async (request, reply) => {
+    const { did } = getAuthContext(request);
+
+    await db
+      .update(profilesTable)
+      .set({
+        headlineOverride: null,
+        aboutOverride: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(profilesTable.did, did));
+
+    return reply.status(200).send({ ok: true });
   });
 }
