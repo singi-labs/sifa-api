@@ -30,8 +30,22 @@ export function registerOAuthRoutes(
         return reply.status(503).send({ error: 'Unavailable', message: 'OAuth not configured' });
       }
 
-      const granularScope =
-        'atproto repo:id.sifa.profile.self repo:id.sifa.profile.position repo:id.sifa.profile.education repo:id.sifa.profile.skill repo:id.sifa.profile.externalAccount repo:id.sifa.graph.follow';
+      const granularScope = [
+        'atproto',
+        'repo:id.sifa.profile.self',
+        'repo:id.sifa.profile.position',
+        'repo:id.sifa.profile.education',
+        'repo:id.sifa.profile.skill',
+        'repo:id.sifa.profile.certification',
+        'repo:id.sifa.profile.project',
+        'repo:id.sifa.profile.volunteering',
+        'repo:id.sifa.profile.publication',
+        'repo:id.sifa.profile.course',
+        'repo:id.sifa.profile.honor',
+        'repo:id.sifa.profile.language',
+        'repo:id.sifa.profile.externalAccount',
+        'repo:id.sifa.graph.follow',
+      ].join(' ');
 
       let url: URL;
       try {
