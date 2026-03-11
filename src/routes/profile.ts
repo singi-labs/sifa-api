@@ -93,6 +93,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
             followersCount: 0,
             followingCount: 0,
             connectionsCount: 0,
+            claimed: false,
           });
         } catch {
           return reply.status(404).send({ error: 'NotFound', message: 'Profile not found' });
@@ -204,6 +205,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         followersCount,
         followingCount,
         connectionsCount: connectionsCountResult,
+        claimed: true,
         isOwnProfile: viewerDid === profile.did,
         ...(viewerRelationship
           ? {
