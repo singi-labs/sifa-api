@@ -8,6 +8,13 @@ import {
   positions as positionsTable,
   education as educationTable,
   skills as skillsTable,
+  certifications as certificationsTable,
+  projects as projectsTable,
+  volunteering as volunteeringTable,
+  publications as publicationsTable,
+  courses as coursesTable,
+  honors as honorsTable,
+  languages as languagesTable,
 } from '../db/schema/index.js';
 import { profileSelfSchema, positionSchema, educationSchema, skillSchema } from './schemas.js';
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
@@ -241,7 +248,19 @@ export function registerProfileWriteRoutes(
     const publicAgent = new Agent('https://public.api.bsky.app');
     const now = new Date();
 
-    const synced = { profile: 0, positions: 0, education: 0, skills: 0 };
+    const synced = {
+      profile: 0,
+      positions: 0,
+      education: 0,
+      skills: 0,
+      certifications: 0,
+      projects: 0,
+      volunteering: 0,
+      publications: 0,
+      courses: 0,
+      honors: 0,
+      languages: 0,
+    };
 
     // Preserve existing identity fields (handle, displayName, avatar)
     const [existingProfile] = await db
@@ -439,6 +458,278 @@ export function registerProfileWriteRoutes(
         }
       } catch {
         // No skill records
+      }
+
+      // Sync certifications
+      try {
+        const res = await pdsAgent.com.atproto.repo.listRecords({
+          repo: did,
+          collection: 'id.sifa.profile.certification',
+          limit: 100,
+        });
+        for (const rec of res.data.records) {
+          const rkey = rec.uri.split('/').pop() ?? '';
+          const r = rec.value as Record<string, unknown>;
+          await db
+            .insert(certificationsTable)
+            .values({
+              did,
+              rkey,
+              name: sanitize(r.name as string),
+              authority: sanitizeOptional(r.authority as string | undefined) ?? null,
+              credentialId: (r.credentialId as string) ?? null,
+              credentialUrl: (r.credentialUrl as string) ?? null,
+              issuedAt: (r.issuedAt as string) ?? null,
+              expiresAt: (r.expiresAt as string) ?? null,
+              createdAt: r.createdAt ? new Date(r.createdAt as string) : now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [certificationsTable.did, certificationsTable.rkey],
+              set: {
+                name: sanitize(r.name as string),
+                authority: sanitizeOptional(r.authority as string | undefined) ?? null,
+                credentialId: (r.credentialId as string) ?? null,
+                credentialUrl: (r.credentialUrl as string) ?? null,
+                issuedAt: (r.issuedAt as string) ?? null,
+                expiresAt: (r.expiresAt as string) ?? null,
+                indexedAt: now,
+              },
+            });
+          synced.certifications++;
+        }
+      } catch {
+        /* No certification records */
+      }
+
+      // Sync projects
+      try {
+        const res = await pdsAgent.com.atproto.repo.listRecords({
+          repo: did,
+          collection: 'id.sifa.profile.project',
+          limit: 100,
+        });
+        for (const rec of res.data.records) {
+          const rkey = rec.uri.split('/').pop() ?? '';
+          const r = rec.value as Record<string, unknown>;
+          await db
+            .insert(projectsTable)
+            .values({
+              did,
+              rkey,
+              name: sanitize(r.name as string),
+              description: sanitizeOptional(r.description as string | undefined) ?? null,
+              url: (r.url as string) ?? null,
+              startedAt: (r.startedAt as string) ?? null,
+              endedAt: (r.endedAt as string) ?? null,
+              createdAt: r.createdAt ? new Date(r.createdAt as string) : now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [projectsTable.did, projectsTable.rkey],
+              set: {
+                name: sanitize(r.name as string),
+                description: sanitizeOptional(r.description as string | undefined) ?? null,
+                url: (r.url as string) ?? null,
+                startedAt: (r.startedAt as string) ?? null,
+                endedAt: (r.endedAt as string) ?? null,
+                indexedAt: now,
+              },
+            });
+          synced.projects++;
+        }
+      } catch {
+        /* No project records */
+      }
+
+      // Sync volunteering
+      try {
+        const res = await pdsAgent.com.atproto.repo.listRecords({
+          repo: did,
+          collection: 'id.sifa.profile.volunteering',
+          limit: 100,
+        });
+        for (const rec of res.data.records) {
+          const rkey = rec.uri.split('/').pop() ?? '';
+          const r = rec.value as Record<string, unknown>;
+          await db
+            .insert(volunteeringTable)
+            .values({
+              did,
+              rkey,
+              organization: sanitize(r.organization as string),
+              role: sanitizeOptional(r.role as string | undefined) ?? null,
+              cause: sanitizeOptional(r.cause as string | undefined) ?? null,
+              description: sanitizeOptional(r.description as string | undefined) ?? null,
+              startedAt: (r.startedAt as string) ?? null,
+              endedAt: (r.endedAt as string) ?? null,
+              createdAt: r.createdAt ? new Date(r.createdAt as string) : now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [volunteeringTable.did, volunteeringTable.rkey],
+              set: {
+                organization: sanitize(r.organization as string),
+                role: sanitizeOptional(r.role as string | undefined) ?? null,
+                cause: sanitizeOptional(r.cause as string | undefined) ?? null,
+                description: sanitizeOptional(r.description as string | undefined) ?? null,
+                startedAt: (r.startedAt as string) ?? null,
+                endedAt: (r.endedAt as string) ?? null,
+                indexedAt: now,
+              },
+            });
+          synced.volunteering++;
+        }
+      } catch {
+        /* No volunteering records */
+      }
+
+      // Sync publications
+      try {
+        const res = await pdsAgent.com.atproto.repo.listRecords({
+          repo: did,
+          collection: 'id.sifa.profile.publication',
+          limit: 100,
+        });
+        for (const rec of res.data.records) {
+          const rkey = rec.uri.split('/').pop() ?? '';
+          const r = rec.value as Record<string, unknown>;
+          await db
+            .insert(publicationsTable)
+            .values({
+              did,
+              rkey,
+              title: sanitize(r.title as string),
+              publisher: sanitizeOptional(r.publisher as string | undefined) ?? null,
+              url: (r.url as string) ?? null,
+              description: sanitizeOptional(r.description as string | undefined) ?? null,
+              publishedAt: (r.publishedAt as string) ?? null,
+              createdAt: r.createdAt ? new Date(r.createdAt as string) : now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [publicationsTable.did, publicationsTable.rkey],
+              set: {
+                title: sanitize(r.title as string),
+                publisher: sanitizeOptional(r.publisher as string | undefined) ?? null,
+                url: (r.url as string) ?? null,
+                description: sanitizeOptional(r.description as string | undefined) ?? null,
+                publishedAt: (r.publishedAt as string) ?? null,
+                indexedAt: now,
+              },
+            });
+          synced.publications++;
+        }
+      } catch {
+        /* No publication records */
+      }
+
+      // Sync courses
+      try {
+        const res = await pdsAgent.com.atproto.repo.listRecords({
+          repo: did,
+          collection: 'id.sifa.profile.course',
+          limit: 200,
+        });
+        for (const rec of res.data.records) {
+          const rkey = rec.uri.split('/').pop() ?? '';
+          const r = rec.value as Record<string, unknown>;
+          await db
+            .insert(coursesTable)
+            .values({
+              did,
+              rkey,
+              name: sanitize(r.name as string),
+              number: sanitizeOptional(r.number as string | undefined) ?? null,
+              institution: sanitizeOptional(r.institution as string | undefined) ?? null,
+              createdAt: r.createdAt ? new Date(r.createdAt as string) : now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [coursesTable.did, coursesTable.rkey],
+              set: {
+                name: sanitize(r.name as string),
+                number: sanitizeOptional(r.number as string | undefined) ?? null,
+                institution: sanitizeOptional(r.institution as string | undefined) ?? null,
+                indexedAt: now,
+              },
+            });
+          synced.courses++;
+        }
+      } catch {
+        /* No course records */
+      }
+
+      // Sync honors
+      try {
+        const res = await pdsAgent.com.atproto.repo.listRecords({
+          repo: did,
+          collection: 'id.sifa.profile.honor',
+          limit: 100,
+        });
+        for (const rec of res.data.records) {
+          const rkey = rec.uri.split('/').pop() ?? '';
+          const r = rec.value as Record<string, unknown>;
+          await db
+            .insert(honorsTable)
+            .values({
+              did,
+              rkey,
+              title: sanitize(r.title as string),
+              issuer: sanitizeOptional(r.issuer as string | undefined) ?? null,
+              description: sanitizeOptional(r.description as string | undefined) ?? null,
+              awardedAt: (r.awardedAt as string) ?? null,
+              createdAt: r.createdAt ? new Date(r.createdAt as string) : now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [honorsTable.did, honorsTable.rkey],
+              set: {
+                title: sanitize(r.title as string),
+                issuer: sanitizeOptional(r.issuer as string | undefined) ?? null,
+                description: sanitizeOptional(r.description as string | undefined) ?? null,
+                awardedAt: (r.awardedAt as string) ?? null,
+                indexedAt: now,
+              },
+            });
+          synced.honors++;
+        }
+      } catch {
+        /* No honor records */
+      }
+
+      // Sync languages
+      try {
+        const res = await pdsAgent.com.atproto.repo.listRecords({
+          repo: did,
+          collection: 'id.sifa.profile.language',
+          limit: 100,
+        });
+        for (const rec of res.data.records) {
+          const rkey = rec.uri.split('/').pop() ?? '';
+          const r = rec.value as Record<string, unknown>;
+          await db
+            .insert(languagesTable)
+            .values({
+              did,
+              rkey,
+              name: sanitize(r.name as string),
+              proficiency: (r.proficiency as string) ?? null,
+              createdAt: r.createdAt ? new Date(r.createdAt as string) : now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [languagesTable.did, languagesTable.rkey],
+              set: {
+                name: sanitize(r.name as string),
+                proficiency: (r.proficiency as string) ?? null,
+                indexedAt: now,
+              },
+            });
+          synced.languages++;
+        }
+      } catch {
+        /* No language records */
       }
     } catch (err) {
       app.log.error({ err, did }, 'Profile sync from PDS failed');

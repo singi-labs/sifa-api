@@ -4,7 +4,19 @@ import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { profileSelfSchema, positionSchema, educationSchema, skillSchema } from './schemas.js';
+import {
+  profileSelfSchema,
+  positionSchema,
+  educationSchema,
+  skillSchema,
+  certificationSchema,
+  projectSchema,
+  volunteeringSchema,
+  publicationSchema,
+  courseSchema,
+  honorSchema,
+  languageSchema,
+} from './schemas.js';
 import {
   generateTid,
   buildApplyWritesOp,
@@ -18,6 +30,13 @@ import {
   positions as positionsTable,
   education as educationTable,
   skills as skillsTable,
+  certifications as certificationsTable,
+  projects as projectsTable,
+  volunteering as volunteeringTable,
+  publications as publicationsTable,
+  courses as coursesTable,
+  honors as honorsTable,
+  languages as languagesTable,
 } from '../db/schema/index.js';
 
 const importPayloadSchema = z.object({
@@ -25,12 +44,26 @@ const importPayloadSchema = z.object({
   positions: z.array(positionSchema).max(100).default([]),
   education: z.array(educationSchema).max(50).default([]),
   skills: z.array(skillSchema).max(200).default([]),
+  certifications: z.array(certificationSchema).max(50).default([]),
+  projects: z.array(projectSchema).max(50).default([]),
+  volunteering: z.array(volunteeringSchema).max(50).default([]),
+  publications: z.array(publicationSchema).max(50).default([]),
+  courses: z.array(courseSchema).max(100).default([]),
+  honors: z.array(honorSchema).max(50).default([]),
+  languages: z.array(languageSchema).max(50).default([]),
 });
 
 type ImportProfile = z.infer<typeof profileSelfSchema>;
 type ImportPosition = z.infer<typeof positionSchema>;
 type ImportEducation = z.infer<typeof educationSchema>;
 type ImportSkill = z.infer<typeof skillSchema>;
+type ImportCertification = z.infer<typeof certificationSchema>;
+type ImportProject = z.infer<typeof projectSchema>;
+type ImportVolunteering = z.infer<typeof volunteeringSchema>;
+type ImportPublication = z.infer<typeof publicationSchema>;
+type ImportCourse = z.infer<typeof courseSchema>;
+type ImportHonor = z.infer<typeof honorSchema>;
+type ImportLanguage = z.infer<typeof languageSchema>;
 
 function normalizeLocation(
   location: string | { country: string; region?: string; city?: string } | undefined,
@@ -87,6 +120,55 @@ function sanitizeSkill(skill: ImportSkill): ImportSkill {
   };
 }
 
+function sanitizeCertification(cert: ImportCertification): ImportCertification {
+  return { ...cert, name: sanitize(cert.name), authority: sanitizeOptional(cert.authority) };
+}
+
+function sanitizeProject(proj: ImportProject): ImportProject {
+  return { ...proj, name: sanitize(proj.name), description: sanitizeOptional(proj.description) };
+}
+
+function sanitizeVolunteering(vol: ImportVolunteering): ImportVolunteering {
+  return {
+    ...vol,
+    organization: sanitize(vol.organization),
+    role: sanitizeOptional(vol.role),
+    cause: sanitizeOptional(vol.cause),
+    description: sanitizeOptional(vol.description),
+  };
+}
+
+function sanitizePublication(pub: ImportPublication): ImportPublication {
+  return {
+    ...pub,
+    title: sanitize(pub.title),
+    publisher: sanitizeOptional(pub.publisher),
+    description: sanitizeOptional(pub.description),
+  };
+}
+
+function sanitizeCourse(course: ImportCourse): ImportCourse {
+  return {
+    ...course,
+    name: sanitize(course.name),
+    number: sanitizeOptional(course.number),
+    institution: sanitizeOptional(course.institution),
+  };
+}
+
+function sanitizeHonor(honor: ImportHonor): ImportHonor {
+  return {
+    ...honor,
+    title: sanitize(honor.title),
+    issuer: sanitizeOptional(honor.issuer),
+    description: sanitizeOptional(honor.description),
+  };
+}
+
+function sanitizeLanguage(lang: ImportLanguage): ImportLanguage {
+  return { ...lang, name: sanitize(lang.name) };
+}
+
 export function registerImportRoutes(
   app: FastifyInstance,
   db: Database,
@@ -103,7 +185,19 @@ export function registerImportRoutes(
         .send({ error: 'InvalidRequest', message: 'Validation failed', issues: body.error.issues });
     }
 
-    const { profile, positions, education, skills } = body.data;
+    const {
+      profile,
+      positions,
+      education,
+      skills,
+      certifications,
+      projects,
+      volunteering,
+      publications,
+      courses,
+      honors,
+      languages,
+    } = body.data;
     const { did, session } = getAuthContext(request);
 
     // Sanitize all data and generate rkeys upfront
@@ -123,6 +217,34 @@ export function registerImportRoutes(
       data: sanitizeSkill(skill),
       rkey: generateTid(),
     }));
+    const cleanCertifications = certifications.map((c) => ({
+      data: sanitizeCertification(c),
+      rkey: generateTid(),
+    }));
+    const cleanProjects = projects.map((p) => ({
+      data: sanitizeProject(p),
+      rkey: generateTid(),
+    }));
+    const cleanVolunteering = volunteering.map((v) => ({
+      data: sanitizeVolunteering(v),
+      rkey: generateTid(),
+    }));
+    const cleanPublications = publications.map((p) => ({
+      data: sanitizePublication(p),
+      rkey: generateTid(),
+    }));
+    const cleanCourses = courses.map((c) => ({
+      data: sanitizeCourse(c),
+      rkey: generateTid(),
+    }));
+    const cleanHonors = honors.map((h) => ({
+      data: sanitizeHonor(h),
+      rkey: generateTid(),
+    }));
+    const cleanLanguages = languages.map((l) => ({
+      data: sanitizeLanguage(l),
+      rkey: generateTid(),
+    }));
 
     // Delete existing PDS records before creating new ones (supports re-import)
     const agent = new Agent(session);
@@ -134,6 +256,13 @@ export function registerImportRoutes(
         'id.sifa.profile.position',
         'id.sifa.profile.education',
         'id.sifa.profile.skill',
+        'id.sifa.profile.certification',
+        'id.sifa.profile.project',
+        'id.sifa.profile.volunteering',
+        'id.sifa.profile.publication',
+        'id.sifa.profile.course',
+        'id.sifa.profile.honor',
+        'id.sifa.profile.language',
       ];
       for (const collection of collections) {
         const existing = await agent.com.atproto.repo.listRecords({
@@ -207,6 +336,69 @@ export function registerImportRoutes(
       );
     }
 
+    for (const { data, rkey } of cleanCertifications) {
+      writes.push(
+        buildApplyWritesOp('create', 'id.sifa.profile.certification', rkey, {
+          ...data,
+          createdAt: nowIso,
+        }),
+      );
+    }
+
+    for (const { data, rkey } of cleanProjects) {
+      writes.push(
+        buildApplyWritesOp('create', 'id.sifa.profile.project', rkey, {
+          ...data,
+          createdAt: nowIso,
+        }),
+      );
+    }
+
+    for (const { data, rkey } of cleanVolunteering) {
+      writes.push(
+        buildApplyWritesOp('create', 'id.sifa.profile.volunteering', rkey, {
+          ...data,
+          createdAt: nowIso,
+        }),
+      );
+    }
+
+    for (const { data, rkey } of cleanPublications) {
+      writes.push(
+        buildApplyWritesOp('create', 'id.sifa.profile.publication', rkey, {
+          ...data,
+          createdAt: nowIso,
+        }),
+      );
+    }
+
+    for (const { data, rkey } of cleanCourses) {
+      writes.push(
+        buildApplyWritesOp('create', 'id.sifa.profile.course', rkey, {
+          ...data,
+          createdAt: nowIso,
+        }),
+      );
+    }
+
+    for (const { data, rkey } of cleanHonors) {
+      writes.push(
+        buildApplyWritesOp('create', 'id.sifa.profile.honor', rkey, {
+          ...data,
+          createdAt: nowIso,
+        }),
+      );
+    }
+
+    for (const { data, rkey } of cleanLanguages) {
+      writes.push(
+        buildApplyWritesOp('create', 'id.sifa.profile.language', rkey, {
+          ...data,
+          createdAt: nowIso,
+        }),
+      );
+    }
+
     // Write to PDS
     const BATCH_SIZE = 100;
     try {
@@ -258,6 +450,13 @@ export function registerImportRoutes(
         await tx.delete(positionsTable).where(eq(positionsTable.did, did));
         await tx.delete(educationTable).where(eq(educationTable.did, did));
         await tx.delete(skillsTable).where(eq(skillsTable.did, did));
+        await tx.delete(certificationsTable).where(eq(certificationsTable.did, did));
+        await tx.delete(projectsTable).where(eq(projectsTable.did, did));
+        await tx.delete(volunteeringTable).where(eq(volunteeringTable.did, did));
+        await tx.delete(publicationsTable).where(eq(publicationsTable.did, did));
+        await tx.delete(coursesTable).where(eq(coursesTable.did, did));
+        await tx.delete(honorsTable).where(eq(honorsTable.did, did));
+        await tx.delete(languagesTable).where(eq(languagesTable.did, did));
 
         // Ensure profile row exists (FK target for child records)
         const profileValues = {
@@ -385,6 +584,187 @@ export function registerImportRoutes(
               },
             });
         }
+
+        for (const { data, rkey } of cleanCertifications) {
+          await tx
+            .insert(certificationsTable)
+            .values({
+              did,
+              rkey,
+              name: data.name,
+              authority: data.authority ?? null,
+              credentialId: data.credentialId ?? null,
+              credentialUrl: data.credentialUrl ?? null,
+              issuedAt: data.issuedAt ?? null,
+              expiresAt: data.expiresAt ?? null,
+              createdAt: now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [certificationsTable.did, certificationsTable.rkey],
+              set: {
+                name: data.name,
+                authority: data.authority ?? null,
+                credentialId: data.credentialId ?? null,
+                credentialUrl: data.credentialUrl ?? null,
+                issuedAt: data.issuedAt ?? null,
+                expiresAt: data.expiresAt ?? null,
+                indexedAt: now,
+              },
+            });
+        }
+
+        for (const { data, rkey } of cleanProjects) {
+          await tx
+            .insert(projectsTable)
+            .values({
+              did,
+              rkey,
+              name: data.name,
+              description: data.description ?? null,
+              url: data.url ?? null,
+              startedAt: data.startedAt ?? null,
+              endedAt: data.endedAt ?? null,
+              createdAt: now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [projectsTable.did, projectsTable.rkey],
+              set: {
+                name: data.name,
+                description: data.description ?? null,
+                url: data.url ?? null,
+                startedAt: data.startedAt ?? null,
+                endedAt: data.endedAt ?? null,
+                indexedAt: now,
+              },
+            });
+        }
+
+        for (const { data, rkey } of cleanVolunteering) {
+          await tx
+            .insert(volunteeringTable)
+            .values({
+              did,
+              rkey,
+              organization: data.organization,
+              role: data.role ?? null,
+              cause: data.cause ?? null,
+              description: data.description ?? null,
+              startedAt: data.startedAt ?? null,
+              endedAt: data.endedAt ?? null,
+              createdAt: now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [volunteeringTable.did, volunteeringTable.rkey],
+              set: {
+                organization: data.organization,
+                role: data.role ?? null,
+                cause: data.cause ?? null,
+                description: data.description ?? null,
+                startedAt: data.startedAt ?? null,
+                endedAt: data.endedAt ?? null,
+                indexedAt: now,
+              },
+            });
+        }
+
+        for (const { data, rkey } of cleanPublications) {
+          await tx
+            .insert(publicationsTable)
+            .values({
+              did,
+              rkey,
+              title: data.title,
+              publisher: data.publisher ?? null,
+              url: data.url ?? null,
+              description: data.description ?? null,
+              publishedAt: data.publishedAt ?? null,
+              createdAt: now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [publicationsTable.did, publicationsTable.rkey],
+              set: {
+                title: data.title,
+                publisher: data.publisher ?? null,
+                url: data.url ?? null,
+                description: data.description ?? null,
+                publishedAt: data.publishedAt ?? null,
+                indexedAt: now,
+              },
+            });
+        }
+
+        for (const { data, rkey } of cleanCourses) {
+          await tx
+            .insert(coursesTable)
+            .values({
+              did,
+              rkey,
+              name: data.name,
+              number: data.number ?? null,
+              institution: data.institution ?? null,
+              createdAt: now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [coursesTable.did, coursesTable.rkey],
+              set: {
+                name: data.name,
+                number: data.number ?? null,
+                institution: data.institution ?? null,
+                indexedAt: now,
+              },
+            });
+        }
+
+        for (const { data, rkey } of cleanHonors) {
+          await tx
+            .insert(honorsTable)
+            .values({
+              did,
+              rkey,
+              title: data.title,
+              issuer: data.issuer ?? null,
+              description: data.description ?? null,
+              awardedAt: data.awardedAt ?? null,
+              createdAt: now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [honorsTable.did, honorsTable.rkey],
+              set: {
+                title: data.title,
+                issuer: data.issuer ?? null,
+                description: data.description ?? null,
+                awardedAt: data.awardedAt ?? null,
+                indexedAt: now,
+              },
+            });
+        }
+
+        for (const { data, rkey } of cleanLanguages) {
+          await tx
+            .insert(languagesTable)
+            .values({
+              did,
+              rkey,
+              name: data.name,
+              proficiency: data.proficiency ?? null,
+              createdAt: now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [languagesTable.did, languagesTable.rkey],
+              set: {
+                name: data.name,
+                proficiency: data.proficiency ?? null,
+                indexedAt: now,
+              },
+            });
+        }
       });
     } catch (err) {
       // Transaction rolled back — existing data preserved, PDS write already succeeded.
@@ -404,6 +784,13 @@ export function registerImportRoutes(
         positions: positions.length,
         education: education.length,
         skills: skills.length,
+        certifications: certifications.length,
+        projects: projects.length,
+        volunteering: volunteering.length,
+        publications: publications.length,
+        courses: courses.length,
+        honors: honors.length,
+        languages: languages.length,
       },
       ...(dbWriteWarning ? { warning: dbWriteWarning } : {}),
     });
