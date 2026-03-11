@@ -6,6 +6,12 @@ import { profileSelfSchema, positionSchema, educationSchema, skillSchema } from 
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
+import {
+  profiles as profilesTable,
+  positions as positionsTable,
+  education as educationTable,
+  skills as skillsTable,
+} from '../db/schema/index.js';
 
 const importPayloadSchema = z.object({
   profile: profileSelfSchema.nullish(),
@@ -93,46 +99,64 @@ export function registerImportRoutes(
     const { profile, positions, education, skills } = body.data;
     const { did, session } = getAuthContext(request);
 
-    // Build write operations with sanitized data
+    // Sanitize all data and generate rkeys upfront
+    const now = new Date();
+    const nowIso = now.toISOString();
+
+    const cleanProfile = profile ? sanitizeProfile(profile) : null;
+    const cleanPositions = positions.map((pos) => ({
+      data: sanitizePosition(pos),
+      rkey: generateTid(),
+    }));
+    const cleanEducation = education.map((edu) => ({
+      data: sanitizeEducation(edu),
+      rkey: generateTid(),
+    }));
+    const cleanSkills = skills.map((skill) => ({
+      data: sanitizeSkill(skill),
+      rkey: generateTid(),
+    }));
+
+    // Build PDS write operations
     const writes: ReturnType<typeof buildApplyWritesOp>[] = [];
 
-    if (profile) {
+    if (cleanProfile) {
       writes.push(
         buildApplyWritesOp('create', 'id.sifa.profile.self', 'self', {
-          ...sanitizeProfile(profile),
-          createdAt: new Date().toISOString(),
+          ...cleanProfile,
+          createdAt: nowIso,
         }),
       );
     }
 
-    for (const pos of positions) {
+    for (const { data, rkey } of cleanPositions) {
       writes.push(
-        buildApplyWritesOp('create', 'id.sifa.profile.position', generateTid(), {
-          ...sanitizePosition(pos),
-          createdAt: new Date().toISOString(),
+        buildApplyWritesOp('create', 'id.sifa.profile.position', rkey, {
+          ...data,
+          createdAt: nowIso,
         }),
       );
     }
 
-    for (const edu of education) {
+    for (const { data, rkey } of cleanEducation) {
       writes.push(
-        buildApplyWritesOp('create', 'id.sifa.profile.education', generateTid(), {
-          ...sanitizeEducation(edu),
-          createdAt: new Date().toISOString(),
+        buildApplyWritesOp('create', 'id.sifa.profile.education', rkey, {
+          ...data,
+          createdAt: nowIso,
         }),
       );
     }
 
-    for (const skill of skills) {
+    for (const { data, rkey } of cleanSkills) {
       writes.push(
-        buildApplyWritesOp('create', 'id.sifa.profile.skill', generateTid(), {
-          ...sanitizeSkill(skill),
-          createdAt: new Date().toISOString(),
+        buildApplyWritesOp('create', 'id.sifa.profile.skill', rkey, {
+          ...data,
+          createdAt: nowIso,
         }),
       );
     }
 
-    // Batch into chunks of 100 (applyWrites limit)
+    // Write to PDS
     const BATCH_SIZE = 100;
     try {
       for (let i = 0; i < writes.length; i += BATCH_SIZE) {
@@ -145,6 +169,98 @@ export function registerImportRoutes(
       return reply
         .status(500)
         .send({ error: 'ImportFailed', message: 'Failed to write to PDS', detail });
+    }
+
+    // Write-through: index into local DB so profile is immediately visible.
+    // Jetstream would eventually deliver the same data, but this avoids latency.
+    try {
+      if (cleanProfile) {
+        const loc = normalizeLocation(cleanProfile.location);
+        await db
+          .insert(profilesTable)
+          .values({
+            did,
+            handle: '',
+            headline: cleanProfile.headline ?? null,
+            about: cleanProfile.about ?? null,
+            industry: cleanProfile.industry ?? null,
+            locationCountry: loc?.country ?? null,
+            locationRegion: loc?.region ?? null,
+            locationCity: loc?.city ?? null,
+            createdAt: now,
+            indexedAt: now,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: profilesTable.did,
+            set: {
+              headline: cleanProfile.headline ?? null,
+              about: cleanProfile.about ?? null,
+              industry: cleanProfile.industry ?? null,
+              locationCountry: loc?.country ?? null,
+              locationRegion: loc?.region ?? null,
+              locationCity: loc?.city ?? null,
+              updatedAt: now,
+            },
+          });
+      }
+
+      if (cleanPositions.length > 0) {
+        await db.insert(positionsTable).values(
+          cleanPositions.map(({ data, rkey }) => {
+            const loc = normalizeLocation(data.location);
+            return {
+              did,
+              rkey,
+              companyName: data.companyName,
+              title: data.title,
+              description: data.description ?? null,
+              locationCountry: loc?.country ?? null,
+              locationRegion: loc?.region ?? null,
+              locationCity: loc?.city ?? null,
+              startDate: data.startDate ?? '',
+              endDate: data.endDate ?? null,
+              current: data.current ?? false,
+              createdAt: now,
+              indexedAt: now,
+            };
+          }),
+        );
+      }
+
+      if (cleanEducation.length > 0) {
+        await db.insert(educationTable).values(
+          cleanEducation.map(({ data, rkey }) => ({
+            did,
+            rkey,
+            institution: data.institution,
+            degree: data.degree ?? null,
+            fieldOfStudy: data.fieldOfStudy ?? null,
+            description: data.description ?? null,
+            startDate: data.startDate ?? null,
+            endDate: data.endDate ?? null,
+            createdAt: now,
+            indexedAt: now,
+          })),
+        );
+      }
+
+      if (cleanSkills.length > 0) {
+        await db.insert(skillsTable).values(
+          cleanSkills.map(({ data, rkey }) => ({
+            did,
+            rkey,
+            skillName: data.skillName,
+            category: data.category ?? null,
+            createdAt: now,
+            indexedAt: now,
+          })),
+        );
+      }
+    } catch (err) {
+      // DB write-through is best-effort; PDS write already succeeded.
+      // Jetstream will eventually deliver the data if this fails.
+      app.log.error({ err, did }, 'Import DB write-through failed (PDS write succeeded)');
     }
 
     return reply.status(200).send({
