@@ -43,6 +43,13 @@
       "when": 1773234687736,
       "tag": "0005_oval_grey_gargoyle",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1773444600000,
+      "tag": "0006_migration_catchup",
+      "breakpoints": true
     }
   ]
 }

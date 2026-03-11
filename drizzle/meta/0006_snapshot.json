@@ -1,0 +1,1340 @@
+{
+  "id": "3848d8ae-7bc1-4797-82c1-7b2447dfa39e",
+  "prevId": "4258779d-70ec-46d8-adae-c5d37f1d1614",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.certifications": {
+      "name": "certifications",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rkey": {
+          "name": "rkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "authority": {
+          "name": "authority",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credential_id": {
+          "name": "credential_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credential_url": {
+          "name": "credential_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "issued_at": {
+          "name": "issued_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "certifications_did_profiles_did_fk": {
+          "name": "certifications_did_profiles_did_fk",
+          "tableFrom": "certifications",
+          "tableTo": "profiles",
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "certifications_did_rkey_pk": {
+          "name": "certifications_did_rkey_pk",
+          "columns": ["did", "rkey"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.connections": {
+      "name": "connections",
+      "schema": "",
+      "columns": {
+        "follower_did": {
+          "name": "follower_did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "subject_did": {
+          "name": "subject_did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rkey": {
+          "name": "rkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_connections_subject": {
+          "name": "idx_connections_subject",
+          "columns": [
+            {
+              "expression": "subject_did",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_connections_follower": {
+          "name": "idx_connections_follower",
+          "columns": [
+            {
+              "expression": "follower_did",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "connections_follower_did_subject_did_source_pk": {
+          "name": "connections_follower_did_subject_did_source_pk",
+          "columns": ["follower_did", "subject_did", "source"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.courses": {
+      "name": "courses",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rkey": {
+          "name": "rkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "number": {
+          "name": "number",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "institution": {
+          "name": "institution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "courses_did_profiles_did_fk": {
+          "name": "courses_did_profiles_did_fk",
+          "tableFrom": "courses",
+          "tableTo": "profiles",
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "courses_did_rkey_pk": {
+          "name": "courses_did_rkey_pk",
+          "columns": ["did", "rkey"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.education": {
+      "name": "education",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rkey": {
+          "name": "rkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "institution": {
+          "name": "institution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "institution_did": {
+          "name": "institution_did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "degree": {
+          "name": "degree",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "field_of_study": {
+          "name": "field_of_study",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "education_did_profiles_did_fk": {
+          "name": "education_did_profiles_did_fk",
+          "tableFrom": "education",
+          "tableTo": "profiles",
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "education_did_rkey_pk": {
+          "name": "education_did_rkey_pk",
+          "columns": ["did", "rkey"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.external_account_verifications": {
+      "name": "external_account_verifications",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "verified": {
+          "name": "verified",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "verified_via": {
+          "name": "verified_via",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "checked_at": {
+          "name": "checked_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {
+        "external_account_verifications_did_url_pk": {
+          "name": "external_account_verifications_did_url_pk",
+          "columns": ["did", "url"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.external_accounts": {
+      "name": "external_accounts",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rkey": {
+          "name": "rkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "platform": {
+          "name": "platform",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feed_url": {
+          "name": "feed_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "external_accounts_did_profiles_did_fk": {
+          "name": "external_accounts_did_profiles_did_fk",
+          "tableFrom": "external_accounts",
+          "tableTo": "profiles",
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "external_accounts_did_rkey_pk": {
+          "name": "external_accounts_did_rkey_pk",
+          "columns": ["did", "rkey"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.honors": {
+      "name": "honors",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rkey": {
+          "name": "rkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "issuer": {
+          "name": "issuer",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "awarded_at": {
+          "name": "awarded_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "honors_did_profiles_did_fk": {
+          "name": "honors_did_profiles_did_fk",
+          "tableFrom": "honors",
+          "tableTo": "profiles",
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "honors_did_rkey_pk": {
+          "name": "honors_did_rkey_pk",
+          "columns": ["did", "rkey"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.jetstream_cursor": {
+      "name": "jetstream_cursor",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "'main'"
+        },
+        "cursor": {
+          "name": "cursor",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.languages": {
+      "name": "languages",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rkey": {
+          "name": "rkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "proficiency": {
+          "name": "proficiency",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "languages_did_profiles_did_fk": {
+          "name": "languages_did_profiles_did_fk",
+          "tableFrom": "languages",
+          "tableTo": "profiles",
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "languages_did_rkey_pk": {
+          "name": "languages_did_rkey_pk",
+          "columns": ["did", "rkey"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.oauth_sessions": {
+      "name": "oauth_sessions",
+      "schema": "",
+      "columns": {
+        "session_id": {
+          "name": "session_id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "handle": {
+          "name": "handle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pds_url": {
+          "name": "pds_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_set": {
+          "name": "token_set",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "dpop_key": {
+          "name": "dpop_key",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.positions": {
+      "name": "positions",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rkey": {
+          "name": "rkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "company_name": {
+          "name": "company_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "company_did": {
+          "name": "company_did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "employment_type": {
+          "name": "employment_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "workplace_type": {
+          "name": "workplace_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location_country": {
+          "name": "location_country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location_region": {
+          "name": "location_region",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location_city": {
+          "name": "location_city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "start_date": {
+          "name": "start_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end_date": {
+          "name": "end_date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "current": {
+          "name": "current",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true,
+          "default": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "positions_did_profiles_did_fk": {
+          "name": "positions_did_profiles_did_fk",
+          "tableFrom": "positions",
+          "tableTo": "profiles",
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "positions_did_rkey_pk": {
+          "name": "positions_did_rkey_pk",
+          "columns": ["did", "rkey"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.profiles": {
+      "name": "profiles",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "handle": {
+          "name": "handle",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "display_name": {
+          "name": "display_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "avatar_url": {
+          "name": "avatar_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "headline": {
+          "name": "headline",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "about": {
+          "name": "about",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "industry": {
+          "name": "industry",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location_country": {
+          "name": "location_country",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location_region": {
+          "name": "location_region",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "location_city": {
+          "name": "location_city",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "website": {
+          "name": "website",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "open_to": {
+          "name": "open_to",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "preferred_workplace": {
+          "name": "preferred_workplace",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "langs": {
+          "name": "langs",
+          "type": "text[]",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_profiles_handle": {
+          "name": "idx_profiles_handle",
+          "columns": [
+            {
+              "expression": "handle",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.projects": {
+      "name": "projects",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rkey": {
+          "name": "rkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "projects_did_profiles_did_fk": {
+          "name": "projects_did_profiles_did_fk",
+          "tableFrom": "projects",
+          "tableTo": "profiles",
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "projects_did_rkey_pk": {
+          "name": "projects_did_rkey_pk",
+          "columns": ["did", "rkey"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.publications": {
+      "name": "publications",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rkey": {
+          "name": "rkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "title": {
+          "name": "title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "publisher": {
+          "name": "publisher",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "url": {
+          "name": "url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "published_at": {
+          "name": "published_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "publications_did_profiles_did_fk": {
+          "name": "publications_did_profiles_did_fk",
+          "tableFrom": "publications",
+          "tableTo": "profiles",
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "publications_did_rkey_pk": {
+          "name": "publications_did_rkey_pk",
+          "columns": ["did", "rkey"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.sessions": {
+      "name": "sessions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "text",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.skills": {
+      "name": "skills",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rkey": {
+          "name": "rkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "skill_name": {
+          "name": "skill_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "category": {
+          "name": "category",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "skills_did_profiles_did_fk": {
+          "name": "skills_did_profiles_did_fk",
+          "tableFrom": "skills",
+          "tableTo": "profiles",
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "skills_did_rkey_pk": {
+          "name": "skills_did_rkey_pk",
+          "columns": ["did", "rkey"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.volunteering": {
+      "name": "volunteering",
+      "schema": "",
+      "columns": {
+        "did": {
+          "name": "did",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "rkey": {
+          "name": "rkey",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "organization": {
+          "name": "organization",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "role": {
+          "name": "role",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "cause": {
+          "name": "cause",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "description": {
+          "name": "description",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "started_at": {
+          "name": "started_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "ended_at": {
+          "name": "ended_at",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "indexed_at": {
+          "name": "indexed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "volunteering_did_profiles_did_fk": {
+          "name": "volunteering_did_profiles_did_fk",
+          "tableFrom": "volunteering",
+          "tableTo": "profiles",
+          "columnsFrom": ["did"],
+          "columnsTo": ["did"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "volunteering_did_rkey_pk": {
+          "name": "volunteering_did_rkey_pk",
+          "columns": ["did", "rkey"]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}
