@@ -114,6 +114,16 @@ export const VALID_PLATFORMS = [
   'other',
 ] as const;
 
+export const COLLECTION_SCHEMAS: Record<string, z.ZodType> = {
+  'id.sifa.profile.certification': certificationSchema,
+  'id.sifa.profile.project': projectSchema,
+  'id.sifa.profile.volunteering': volunteeringSchema,
+  'id.sifa.profile.publication': publicationSchema,
+  'id.sifa.profile.course': courseSchema,
+  'id.sifa.profile.honor': honorSchema,
+  'id.sifa.profile.language': languageSchema,
+};
+
 export const externalAccountSchema = z.object({
   platform: z.enum(VALID_PLATFORMS),
   url: z.string().url().max(2000),

@@ -17,7 +17,7 @@ import {
   honors as honorsTable,
   languages as languagesTable,
 } from '../db/schema/index.js';
-import { profileSelfSchema, positionSchema, educationSchema, skillSchema } from './schemas.js';
+import { profileSelfSchema, positionSchema, educationSchema, skillSchema, COLLECTION_SCHEMAS } from './schemas.js';
 import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
@@ -241,6 +241,64 @@ export function registerProfileWriteRoutes(
         buildApplyWritesOp('delete', 'id.sifa.profile.skill', rkey),
       ]);
 
+      return reply.status(200).send({ ok: true });
+    },
+  );
+
+  // Generic CRUD for remaining collections (certification, project, volunteering, publication, course, honor, language)
+  app.post<{ Params: { collection: string } }>(
+    '/api/profile/records/:collection',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { collection } = request.params;
+      const schema = COLLECTION_SCHEMAS[collection];
+      if (!schema) {
+        return reply.status(400).send({ error: 'UnknownCollection', message: `Unknown collection: ${collection}` });
+      }
+      const parsed = schema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'ValidationError', issues: parsed.error.issues });
+      }
+      const { did, session } = getAuthContext(request);
+      const rkey = generateTid();
+      const data = parsed.data as Record<string, unknown>;
+      const record: Record<string, unknown> = { createdAt: new Date().toISOString(), ...data };
+      await writeToUserPds(session, did, [buildApplyWritesOp('create', collection, rkey, record)]);
+      return reply.status(201).send({ rkey });
+    },
+  );
+
+  app.put<{ Params: { collection: string; rkey: string } }>(
+    '/api/profile/records/:collection/:rkey',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { collection, rkey } = request.params;
+      const schema = COLLECTION_SCHEMAS[collection];
+      if (!schema) {
+        return reply.status(400).send({ error: 'UnknownCollection', message: `Unknown collection: ${collection}` });
+      }
+      const parsed = schema.safeParse(request.body);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'ValidationError', issues: parsed.error.issues });
+      }
+      const { did, session } = getAuthContext(request);
+      const data = parsed.data as Record<string, unknown>;
+      const record: Record<string, unknown> = { createdAt: new Date().toISOString(), ...data };
+      await writeToUserPds(session, did, [buildApplyWritesOp('update', collection, rkey, record)]);
+      return reply.status(200).send({ ok: true });
+    },
+  );
+
+  app.delete<{ Params: { collection: string; rkey: string } }>(
+    '/api/profile/records/:collection/:rkey',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { collection, rkey } = request.params;
+      if (!COLLECTION_SCHEMAS[collection]) {
+        return reply.status(400).send({ error: 'UnknownCollection', message: `Unknown collection: ${collection}` });
+      }
+      const { did, session } = getAuthContext(request);
+      await writeToUserPds(session, did, [buildApplyWritesOp('delete', collection, rkey)]);
       return reply.status(200).send({ ok: true });
     },
   );
