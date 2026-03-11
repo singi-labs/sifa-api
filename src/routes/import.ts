@@ -254,6 +254,31 @@ export function registerImportRoutes(
       await db.delete(positionsTable).where(eq(positionsTable.did, did));
       await db.delete(educationTable).where(eq(educationTable.did, did));
       await db.delete(skillsTable).where(eq(skillsTable.did, did));
+
+      // Always ensure the profile row has identity fields, even without LinkedIn profile data
+      if (handle && (!existingProfile || !existingProfile.handle)) {
+        await db
+          .insert(profilesTable)
+          .values({
+            did,
+            handle,
+            displayName,
+            avatarUrl,
+            createdAt: now,
+            indexedAt: now,
+            updatedAt: now,
+          })
+          .onConflictDoUpdate({
+            target: profilesTable.did,
+            set: {
+              handle,
+              displayName,
+              avatarUrl,
+              updatedAt: now,
+            },
+          });
+      }
+
       if (cleanProfile) {
         const loc = normalizeLocation(cleanProfile.location);
         await db
