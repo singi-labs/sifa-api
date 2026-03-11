@@ -9,6 +9,8 @@ export const profiles = pgTable(
     avatarUrl: text('avatar_url'),
     headline: text('headline'),
     about: text('about'),
+    headlineOverride: text('headline_override'),
+    aboutOverride: text('about_override'),
     industry: text('industry'),
     locationCountry: text('location_country'),
     locationRegion: text('location_region'),
