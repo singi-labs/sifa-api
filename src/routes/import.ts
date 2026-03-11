@@ -299,14 +299,29 @@ export function registerImportRoutes(
             },
           });
 
-        // Insert child records
-        if (cleanPositions.length > 0) {
-          await tx.insert(positionsTable).values(
-            cleanPositions.map(({ data, rkey }) => {
-              const loc = normalizeLocation(data.location);
-              return {
-                did,
-                rkey,
+        // Upsert child records (Jetstream may have already indexed them from the PDS write)
+        for (const { data, rkey } of cleanPositions) {
+          const loc = normalizeLocation(data.location);
+          await tx
+            .insert(positionsTable)
+            .values({
+              did,
+              rkey,
+              companyName: data.companyName,
+              title: data.title,
+              description: data.description ?? null,
+              locationCountry: loc?.country ?? null,
+              locationRegion: loc?.region ?? null,
+              locationCity: loc?.city ?? null,
+              startDate: data.startDate ?? '',
+              endDate: data.endDate ?? null,
+              current: data.current ?? false,
+              createdAt: now,
+              indexedAt: now,
+            })
+            .onConflictDoUpdate({
+              target: [positionsTable.did, positionsTable.rkey],
+              set: {
                 companyName: data.companyName,
                 title: data.title,
                 description: data.description ?? null,
@@ -316,16 +331,15 @@ export function registerImportRoutes(
                 startDate: data.startDate ?? '',
                 endDate: data.endDate ?? null,
                 current: data.current ?? false,
-                createdAt: now,
                 indexedAt: now,
-              };
-            }),
-          );
+              },
+            });
         }
 
-        if (cleanEducation.length > 0) {
-          await tx.insert(educationTable).values(
-            cleanEducation.map(({ data, rkey }) => ({
+        for (const { data, rkey } of cleanEducation) {
+          await tx
+            .insert(educationTable)
+            .values({
               did,
               rkey,
               institution: data.institution,
@@ -336,21 +350,40 @@ export function registerImportRoutes(
               endDate: data.endDate ?? null,
               createdAt: now,
               indexedAt: now,
-            })),
-          );
+            })
+            .onConflictDoUpdate({
+              target: [educationTable.did, educationTable.rkey],
+              set: {
+                institution: data.institution,
+                degree: data.degree ?? null,
+                fieldOfStudy: data.fieldOfStudy ?? null,
+                description: data.description ?? null,
+                startDate: data.startDate ?? null,
+                endDate: data.endDate ?? null,
+                indexedAt: now,
+              },
+            });
         }
 
-        if (cleanSkills.length > 0) {
-          await tx.insert(skillsTable).values(
-            cleanSkills.map(({ data, rkey }) => ({
+        for (const { data, rkey } of cleanSkills) {
+          await tx
+            .insert(skillsTable)
+            .values({
               did,
               rkey,
               skillName: data.skillName,
               category: data.category ?? null,
               createdAt: now,
               indexedAt: now,
-            })),
-          );
+            })
+            .onConflictDoUpdate({
+              target: [skillsTable.did, skillsTable.rkey],
+              set: {
+                skillName: data.skillName,
+                category: data.category ?? null,
+                indexedAt: now,
+              },
+            });
         }
       });
     } catch (err) {
