@@ -436,7 +436,10 @@ export function registerImportRoutes(
       if (!handle) {
         try {
           const publicAgent = new Agent('https://public.api.bsky.app');
-          const bskyProfile = await publicAgent.getProfile({ actor: did });
+          const bskyProfile = await publicAgent.getProfile(
+            { actor: did },
+            { signal: AbortSignal.timeout(3000) },
+          );
           handle = bskyProfile.data.handle;
           displayName = bskyProfile.data.displayName ?? displayName;
           avatarUrl = bskyProfile.data.avatar ?? avatarUrl;
