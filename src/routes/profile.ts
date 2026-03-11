@@ -20,6 +20,7 @@ import {
 } from '../db/schema/index.js';
 import { resolveSessionDid } from '../middleware/auth.js';
 import { isVerifiablePlatform } from '../services/verification.js';
+import { resolveProfileFields } from '../lib/resolve-profile.js';
 
 export async function getMutualFollowCount(db: Database, did: string): Promise<number> {
   // Raw SQL required: Drizzle ORM doesn't support self-join aggregate subqueries for mutual follow counting
@@ -145,6 +146,11 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
           .where(eq(externalAccountVerifications.did, profile.did)),
       ]);
 
+      const resolved = resolveProfileFields(
+        { headline: profile.headline, about: profile.about },
+        { headline: profile.headlineOverride, about: profile.aboutOverride },
+      );
+
       const viewerDid = await resolveSessionDid(db, request.cookies?.session);
 
       const [followersResult, followingResult, connectionsCountResult, viewerRelationship] =
@@ -171,8 +177,14 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         handle: profile.handle,
         displayName: profile.displayName,
         avatar: profile.avatarUrl,
-        headline: profile.headline,
-        about: profile.about,
+        headline: resolved.headline,
+        about: resolved.about,
+        hasHeadlineOverride: resolved.hasHeadlineOverride,
+        hasAboutOverride: resolved.hasAboutOverride,
+        source: {
+          headline: profile.headline,
+          about: profile.about,
+        },
         industry: profile.industry,
         locationCountry: profile.locationCountry,
         locationRegion: profile.locationRegion,
