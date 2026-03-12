@@ -169,25 +169,27 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
 
       const viewerDid = await resolveSessionDid(db, request.cookies?.session);
 
-      const [followersResult, followingResult, connectionsCountResult, inviteCountResult, viewerRelationship] =
-        await Promise.all([
-          db
-            .select({ value: count() })
-            .from(connections)
-            .where(and(eq(connections.subjectDid, profile.did), eq(connections.source, 'sifa'))),
-          db
-            .select({ value: count() })
-            .from(connections)
-            .where(and(eq(connections.followerDid, profile.did), eq(connections.source, 'sifa'))),
-          getMutualFollowCount(db, profile.did),
-          db
-            .select({ value: count() })
-            .from(invites)
-            .where(eq(invites.subjectDid, profile.did)),
-          viewerDid && viewerDid !== profile.did
-            ? checkViewerRelationship(db, viewerDid, profile.did)
-            : Promise.resolve(undefined),
-        ]);
+      const [
+        followersResult,
+        followingResult,
+        connectionsCountResult,
+        inviteCountResult,
+        viewerRelationship,
+      ] = await Promise.all([
+        db
+          .select({ value: count() })
+          .from(connections)
+          .where(and(eq(connections.subjectDid, profile.did), eq(connections.source, 'sifa'))),
+        db
+          .select({ value: count() })
+          .from(connections)
+          .where(and(eq(connections.followerDid, profile.did), eq(connections.source, 'sifa'))),
+        getMutualFollowCount(db, profile.did),
+        db.select({ value: count() }).from(invites).where(eq(invites.subjectDid, profile.did)),
+        viewerDid && viewerDid !== profile.did
+          ? checkViewerRelationship(db, viewerDid, profile.did)
+          : Promise.resolve(undefined),
+      ]);
 
       const followersCount = followersResult[0]?.value ?? 0;
       const followingCount = followingResult[0]?.value ?? 0;
