@@ -57,6 +57,13 @@
       "when": 1773530400000,
       "tag": "0007_profile_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1773538800000,
+      "tag": "0008_suggestion_dismissals_invites",
+      "breakpoints": true
     }
   ]
 }
