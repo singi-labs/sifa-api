@@ -17,6 +17,7 @@ import {
   connections,
   externalAccounts,
   externalAccountVerifications,
+  invites,
 } from '../db/schema/index.js';
 import { resolveSessionDid } from '../middleware/auth.js';
 import { isVerifiablePlatform } from '../services/verification.js';
@@ -81,6 +82,11 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
             { actor: handleOrDid },
             { signal: AbortSignal.timeout(3000) },
           );
+          const [inviteCountResult] = await db
+            .select({ value: count() })
+            .from(invites)
+            .where(eq(invites.subjectDid, bskyProfile.data.did));
+
           return reply.send({
             did: bskyProfile.data.did,
             handle: bskyProfile.data.handle,
@@ -117,6 +123,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
             followersCount: 0,
             followingCount: 0,
             connectionsCount: 0,
+            inviteCount: inviteCountResult?.value ?? 0,
             claimed: false,
           });
         } catch {
@@ -162,7 +169,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
 
       const viewerDid = await resolveSessionDid(db, request.cookies?.session);
 
-      const [followersResult, followingResult, connectionsCountResult, viewerRelationship] =
+      const [followersResult, followingResult, connectionsCountResult, inviteCountResult, viewerRelationship] =
         await Promise.all([
           db
             .select({ value: count() })
@@ -173,6 +180,10 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
             .from(connections)
             .where(and(eq(connections.followerDid, profile.did), eq(connections.source, 'sifa'))),
           getMutualFollowCount(db, profile.did),
+          db
+            .select({ value: count() })
+            .from(invites)
+            .where(eq(invites.subjectDid, profile.did)),
           viewerDid && viewerDid !== profile.did
             ? checkViewerRelationship(db, viewerDid, profile.did)
             : Promise.resolve(undefined),
@@ -305,6 +316,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         followersCount,
         followingCount,
         connectionsCount: connectionsCountResult,
+        inviteCount: inviteCountResult[0]?.value ?? 0,
         claimed: true,
         isOwnProfile: viewerDid === profile.did,
         ...(viewerRelationship
