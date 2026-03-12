@@ -6,6 +6,8 @@ import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
 import { sessions, profiles, oauthSessions } from '../db/schema/index.js';
+import { importBlueskyFollows } from '../services/bluesky-follows.js';
+import { importTangledFollows } from '../services/tangled-follows.js';
 
 const loginSchema = z.object({
   handle: z.string().min(1).max(253),
@@ -145,6 +147,62 @@ export function registerOAuthRoutes(
       } catch (err) {
         app.log.error({ err, did }, 'Profile sync on login failed');
       }
+
+      // Import follows from Bluesky and Tangled (fire-and-forget, non-blocking)
+      void (async () => {
+        try {
+          const agent = new Agent(session);
+
+          // Import Bluesky follows
+          const bskyFollows: Array<{ did: string; handle: string; createdAt: string }> = [];
+          let cursor: string | undefined;
+          do {
+            const res = await agent.getFollows({ actor: did, limit: 100, cursor });
+            for (const f of res.data.follows) {
+              bskyFollows.push({
+                did: f.did,
+                handle: f.handle,
+                createdAt: f.indexedAt ?? new Date().toISOString(),
+              });
+            }
+            cursor = res.data.cursor;
+          } while (cursor);
+          await importBlueskyFollows(db, did, bskyFollows);
+          app.log.info({ did, count: bskyFollows.length }, 'Imported Bluesky follows');
+
+          // Import Tangled follows (read from user's PDS repo)
+          try {
+            const tangledFollows: Array<{ did: string; handle: string; createdAt: string }> = [];
+            let tangledCursor: string | undefined;
+            do {
+              const res = await agent.com.atproto.repo.listRecords({
+                repo: did,
+                collection: 'sh.tangled.graph.follow',
+                limit: 100,
+                cursor: tangledCursor,
+              });
+              for (const record of res.data.records) {
+                const val = record.value as { subject?: string; createdAt?: string };
+                if (val.subject) {
+                  tangledFollows.push({
+                    did: val.subject,
+                    handle: '', // We don't have the handle from PDS records
+                    createdAt: val.createdAt ?? new Date().toISOString(),
+                  });
+                }
+              }
+              tangledCursor = res.data.cursor;
+            } while (tangledCursor);
+            await importTangledFollows(db, did, tangledFollows);
+            app.log.info({ did, count: tangledFollows.length }, 'Imported Tangled follows');
+          } catch (err) {
+            // User may not have any Tangled records — this is expected
+            app.log.debug({ err, did }, 'Tangled follow import skipped or failed');
+          }
+        } catch (err) {
+          app.log.error({ err, did }, 'Follow import on login failed');
+        }
+      })();
 
       // New users go to import; returning users go home (frontend reads sessionStorage returnTo)
       return reply.redirect(isNewUser ? '/import' : '/');

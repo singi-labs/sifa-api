@@ -19,6 +19,7 @@ import { registerImportRoutes } from './routes/import.js';
 import { registerFollowRoutes } from './routes/follow.js';
 import { registerSearchRoutes } from './routes/search.js';
 import { registerExternalAccountRoutes } from './routes/external-accounts.js';
+import { registerSuggestionRoutes } from './routes/suggestions.js';
 import { registerWellKnownRoutes } from './routes/well-known.js';
 import { createJetstreamClient } from './jetstream/client.js';
 import { createEventRouter } from './jetstream/handler.js';
@@ -97,6 +98,7 @@ export async function buildServer(config: Env) {
   registerFollowRoutes(app, db, oauthClient);
   registerSearchRoutes(app, db);
   registerExternalAccountRoutes(app, db, oauthClient, valkey);
+  registerSuggestionRoutes(app, db, oauthClient, config.PUBLIC_URL);
 
   // Start Jetstream in non-test mode
   if (config.NODE_ENV !== 'test') {
