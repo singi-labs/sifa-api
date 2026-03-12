@@ -1,6 +1,6 @@
 {
   "id": "3848d8ae-7bc1-4797-82c1-7b2447dfa39e",
-  "prevId": "4258779d-70ec-46d8-adae-c5d37f1d1614",
+  "prevId": "3848d8ae-7bc1-4797-82c1-7b2447dfa39e",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -76,8 +76,12 @@
           "name": "certifications_did_profiles_did_fk",
           "tableFrom": "certifications",
           "tableTo": "profiles",
-          "columnsFrom": ["did"],
-          "columnsTo": ["did"],
+          "columnsFrom": [
+            "did"
+          ],
+          "columnsTo": [
+            "did"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -85,7 +89,10 @@
       "compositePrimaryKeys": {
         "certifications_did_rkey_pk": {
           "name": "certifications_did_rkey_pk",
-          "columns": ["did", "rkey"]
+          "columns": [
+            "did",
+            "rkey"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -171,7 +178,11 @@
       "compositePrimaryKeys": {
         "connections_follower_did_subject_did_source_pk": {
           "name": "connections_follower_did_subject_did_source_pk",
-          "columns": ["follower_did", "subject_did", "source"]
+          "columns": [
+            "follower_did",
+            "subject_did",
+            "source"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -233,8 +244,12 @@
           "name": "courses_did_profiles_did_fk",
           "tableFrom": "courses",
           "tableTo": "profiles",
-          "columnsFrom": ["did"],
-          "columnsTo": ["did"],
+          "columnsFrom": [
+            "did"
+          ],
+          "columnsTo": [
+            "did"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -242,7 +257,10 @@
       "compositePrimaryKeys": {
         "courses_did_rkey_pk": {
           "name": "courses_did_rkey_pk",
-          "columns": ["did", "rkey"]
+          "columns": [
+            "did",
+            "rkey"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -328,8 +346,12 @@
           "name": "education_did_profiles_did_fk",
           "tableFrom": "education",
           "tableTo": "profiles",
-          "columnsFrom": ["did"],
-          "columnsTo": ["did"],
+          "columnsFrom": [
+            "did"
+          ],
+          "columnsTo": [
+            "did"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -337,7 +359,10 @@
       "compositePrimaryKeys": {
         "education_did_rkey_pk": {
           "name": "education_did_rkey_pk",
-          "columns": ["did", "rkey"]
+          "columns": [
+            "did",
+            "rkey"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -387,7 +412,10 @@
       "compositePrimaryKeys": {
         "external_account_verifications_did_url_pk": {
           "name": "external_account_verifications_did_url_pk",
-          "columns": ["did", "url"]
+          "columns": [
+            "did",
+            "url"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -455,8 +483,12 @@
           "name": "external_accounts_did_profiles_did_fk",
           "tableFrom": "external_accounts",
           "tableTo": "profiles",
-          "columnsFrom": ["did"],
-          "columnsTo": ["did"],
+          "columnsFrom": [
+            "did"
+          ],
+          "columnsTo": [
+            "did"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -464,7 +496,10 @@
       "compositePrimaryKeys": {
         "external_accounts_did_rkey_pk": {
           "name": "external_accounts_did_rkey_pk",
-          "columns": ["did", "rkey"]
+          "columns": [
+            "did",
+            "rkey"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -532,8 +567,12 @@
           "name": "honors_did_profiles_did_fk",
           "tableFrom": "honors",
           "tableTo": "profiles",
-          "columnsFrom": ["did"],
-          "columnsTo": ["did"],
+          "columnsFrom": [
+            "did"
+          ],
+          "columnsTo": [
+            "did"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -541,7 +580,10 @@
       "compositePrimaryKeys": {
         "honors_did_rkey_pk": {
           "name": "honors_did_rkey_pk",
-          "columns": ["did", "rkey"]
+          "columns": [
+            "did",
+            "rkey"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -630,8 +672,12 @@
           "name": "languages_did_profiles_did_fk",
           "tableFrom": "languages",
           "tableTo": "profiles",
-          "columnsFrom": ["did"],
-          "columnsTo": ["did"],
+          "columnsFrom": [
+            "did"
+          ],
+          "columnsTo": [
+            "did"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -639,7 +685,10 @@
       "compositePrimaryKeys": {
         "languages_did_rkey_pk": {
           "name": "languages_did_rkey_pk",
-          "columns": ["did", "rkey"]
+          "columns": [
+            "did",
+            "rkey"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -818,8 +867,12 @@
           "name": "positions_did_profiles_did_fk",
           "tableFrom": "positions",
           "tableTo": "profiles",
-          "columnsFrom": ["did"],
-          "columnsTo": ["did"],
+          "columnsFrom": [
+            "did"
+          ],
+          "columnsTo": [
+            "did"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -827,7 +880,10 @@
       "compositePrimaryKeys": {
         "positions_did_rkey_pk": {
           "name": "positions_did_rkey_pk",
-          "columns": ["did", "rkey"]
+          "columns": [
+            "did",
+            "rkey"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -1034,8 +1090,12 @@
           "name": "projects_did_profiles_did_fk",
           "tableFrom": "projects",
           "tableTo": "profiles",
-          "columnsFrom": ["did"],
-          "columnsTo": ["did"],
+          "columnsFrom": [
+            "did"
+          ],
+          "columnsTo": [
+            "did"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1043,7 +1103,10 @@
       "compositePrimaryKeys": {
         "projects_did_rkey_pk": {
           "name": "projects_did_rkey_pk",
-          "columns": ["did", "rkey"]
+          "columns": [
+            "did",
+            "rkey"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -1117,8 +1180,12 @@
           "name": "publications_did_profiles_did_fk",
           "tableFrom": "publications",
           "tableTo": "profiles",
-          "columnsFrom": ["did"],
-          "columnsTo": ["did"],
+          "columnsFrom": [
+            "did"
+          ],
+          "columnsTo": [
+            "did"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1126,7 +1193,10 @@
       "compositePrimaryKeys": {
         "publications_did_rkey_pk": {
           "name": "publications_did_rkey_pk",
-          "columns": ["did", "rkey"]
+          "columns": [
+            "did",
+            "rkey"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -1219,8 +1289,12 @@
           "name": "skills_did_profiles_did_fk",
           "tableFrom": "skills",
           "tableTo": "profiles",
-          "columnsFrom": ["did"],
-          "columnsTo": ["did"],
+          "columnsFrom": [
+            "did"
+          ],
+          "columnsTo": [
+            "did"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1228,7 +1302,10 @@
       "compositePrimaryKeys": {
         "skills_did_rkey_pk": {
           "name": "skills_did_rkey_pk",
-          "columns": ["did", "rkey"]
+          "columns": [
+            "did",
+            "rkey"
+          ]
         }
       },
       "uniqueConstraints": {},
@@ -1308,8 +1385,12 @@
           "name": "volunteering_did_profiles_did_fk",
           "tableFrom": "volunteering",
           "tableTo": "profiles",
-          "columnsFrom": ["did"],
-          "columnsTo": ["did"],
+          "columnsFrom": [
+            "did"
+          ],
+          "columnsTo": [
+            "did"
+          ],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -1317,7 +1398,10 @@
       "compositePrimaryKeys": {
         "volunteering_did_rkey_pk": {
           "name": "volunteering_did_rkey_pk",
-          "columns": ["did", "rkey"]
+          "columns": [
+            "did",
+            "rkey"
+          ]
         }
       },
       "uniqueConstraints": {},
