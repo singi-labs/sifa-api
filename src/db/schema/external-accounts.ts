@@ -12,6 +12,7 @@ export const externalAccounts = pgTable(
     url: text('url').notNull(),
     label: text('label'),
     feedUrl: text('feed_url'),
+    isPrimary: boolean('is_primary').notNull().default(false),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     indexedAt: timestamp('indexed_at', { withTimezone: true }).notNull().defaultNow(),
   },

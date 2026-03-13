@@ -104,6 +104,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
             locationCountry: null,
             locationRegion: null,
             locationCity: null,
+            location: null,
             website: null,
             openTo: null,
             preferredWorkplace: null,
@@ -194,6 +195,17 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
       const followersCount = followersResult[0]?.value ?? 0;
       const followingCount = followingResult[0]?.value ?? 0;
 
+      // Assemble location display string from parts
+      const locationParts = [profile.locationCity, profile.locationRegion, profile.locationCountry].filter(Boolean);
+      const location = locationParts.length > 0 ? locationParts.join(', ') : null;
+
+      // Find primary external account for website fallback
+      const [primaryAccount] = await db
+        .select()
+        .from(externalAccounts)
+        .where(and(eq(externalAccounts.did, profile.did), eq(externalAccounts.isPrimary, true)))
+        .limit(1);
+
       return reply.send({
         did: profile.did,
         handle: profile.handle,
@@ -211,7 +223,8 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         locationCountry: profile.locationCountry,
         locationRegion: profile.locationRegion,
         locationCity: profile.locationCity,
-        website: profile.website,
+        location,
+        website: primaryAccount?.url ?? profile.website ?? null,
         openTo: profile.openTo,
         preferredWorkplace: profile.preferredWorkplace,
         langs: profile.langs,
@@ -309,6 +322,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
               url: acc.url,
               label: acc.label,
               feedUrl: acc.feedUrl,
+              primary: acc.isPrimary,
               verifiable: isVerifiablePlatform(acc.platform),
               verified: v?.verified ?? false,
               verifiedVia: v?.verifiedVia ?? null,

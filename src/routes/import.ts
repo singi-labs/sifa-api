@@ -70,9 +70,18 @@ function normalizeLocation(
 ): { country: string; region?: string; city?: string } | undefined {
   if (!location) return undefined;
   if (typeof location === 'string') {
-    // Best-effort: treat the string as city, or skip if empty
     const trimmed = location.trim();
     if (!trimmed) return undefined;
+    // Try to split "City, Country" or "City, Region, Country" format
+    const parts = trimmed.split(',').map((p) => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      return {
+        country: parts[parts.length - 1]!,
+        city: parts[0]!,
+        ...(parts.length >= 3 ? { region: parts[1] } : {}),
+      };
+    }
+    // Single value - treat as country
     return { country: trimmed };
   }
   return {
