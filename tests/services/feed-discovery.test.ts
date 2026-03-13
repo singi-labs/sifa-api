@@ -60,13 +60,8 @@ describe('discoverFeedUrl', () => {
   });
 
   it('discovers YouTube feed from /channel/ URL', async () => {
-    const result = await discoverFeedUrl(
-      'youtube',
-      'https://www.youtube.com/channel/UCxyz123ABC',
-    );
-    expect(result).toBe(
-      'https://www.youtube.com/feeds/videos.xml?channel_id=UCxyz123ABC',
-    );
+    const result = await discoverFeedUrl('youtube', 'https://www.youtube.com/channel/UCxyz123ABC');
+    expect(result).toBe('https://www.youtube.com/feeds/videos.xml?channel_id=UCxyz123ABC');
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
@@ -79,13 +74,8 @@ describe('discoverFeedUrl', () => {
         ),
     });
 
-    const result = await discoverFeedUrl(
-      'youtube',
-      'https://www.youtube.com/@testchannel',
-    );
-    expect(result).toBe(
-      'https://www.youtube.com/feeds/videos.xml?channel_id=UCabc456DEF',
-    );
+    const result = await discoverFeedUrl('youtube', 'https://www.youtube.com/@testchannel');
+    expect(result).toBe('https://www.youtube.com/feeds/videos.xml?channel_id=UCabc456DEF');
   });
 
   it('returns null for YouTube URL when channel ID cannot be found', async () => {
