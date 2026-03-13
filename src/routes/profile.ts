@@ -196,7 +196,11 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
       const followingCount = followingResult[0]?.value ?? 0;
 
       // Assemble location display string from parts
-      const locationParts = [profile.locationCity, profile.locationRegion, profile.locationCountry].filter(Boolean);
+      const locationParts = [
+        profile.locationCity,
+        profile.locationRegion,
+        profile.locationCountry,
+      ].filter(Boolean);
       const location = locationParts.length > 0 ? locationParts.join(', ') : null;
 
       // Find primary external account for website fallback

@@ -148,10 +148,14 @@ export function registerExternalAccountRoutes(
       }
 
       // Unset all primary flags for this user, then set the requested one
-      await db.update(externalAccounts).set({ isPrimary: false }).where(eq(externalAccounts.did, did));
-      await db.update(externalAccounts).set({ isPrimary: true }).where(
-        and(eq(externalAccounts.did, did), eq(externalAccounts.rkey, rkey)),
-      );
+      await db
+        .update(externalAccounts)
+        .set({ isPrimary: false })
+        .where(eq(externalAccounts.did, did));
+      await db
+        .update(externalAccounts)
+        .set({ isPrimary: true })
+        .where(and(eq(externalAccounts.did, did), eq(externalAccounts.rkey, rkey)));
 
       return reply.status(200).send({ ok: true });
     },
@@ -165,9 +169,10 @@ export function registerExternalAccountRoutes(
       const { did } = getAuthContext(request);
       const { rkey } = request.params;
 
-      await db.update(externalAccounts).set({ isPrimary: false }).where(
-        and(eq(externalAccounts.did, did), eq(externalAccounts.rkey, rkey)),
-      );
+      await db
+        .update(externalAccounts)
+        .set({ isPrimary: false })
+        .where(and(eq(externalAccounts.did, did), eq(externalAccounts.rkey, rkey)));
 
       return reply.status(200).send({ ok: true });
     },
