@@ -4,7 +4,13 @@ import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import type { Database } from '../db/index.js';
 import { connections } from '../db/schema/index.js';
 import { and, eq } from 'drizzle-orm';
-import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
+import {
+  generateTid,
+  buildApplyWritesOp,
+  writeToUserPds,
+  isPdsRecordNotFound,
+  handlePdsError,
+} from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 
 const followSchema = z.object({
@@ -79,9 +85,15 @@ export function registerFollowRoutes(
 
       // Delete PDS record if we have the rkey
       if (row?.rkey) {
-        await writeToUserPds(session, followerDid, [
-          buildApplyWritesOp('delete', 'id.sifa.graph.follow', row.rkey),
-        ]);
+        try {
+          await writeToUserPds(session, followerDid, [
+            buildApplyWritesOp('delete', 'id.sifa.graph.follow', row.rkey),
+          ]);
+        } catch (err) {
+          if (!isPdsRecordNotFound(err)) {
+            return handlePdsError(err, reply);
+          }
+        }
       }
 
       // Remove from connections table

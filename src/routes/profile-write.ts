@@ -24,7 +24,13 @@ import {
   skillSchema,
   COLLECTION_SCHEMAS,
 } from './schemas.js';
-import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
+import {
+  generateTid,
+  buildApplyWritesOp,
+  writeToUserPds,
+  isPdsRecordNotFound,
+  handlePdsError,
+} from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
 
@@ -119,9 +125,16 @@ export function registerProfileWriteRoutes(
       const { did, session } = getAuthContext(request);
       const { rkey } = request.params;
 
-      await writeToUserPds(session, did, [
-        buildApplyWritesOp('delete', 'id.sifa.profile.position', rkey),
-      ]);
+      try {
+        await writeToUserPds(session, did, [
+          buildApplyWritesOp('delete', 'id.sifa.profile.position', rkey),
+        ]);
+      } catch (err) {
+        if (isPdsRecordNotFound(err)) {
+          return reply.status(200).send({ ok: true });
+        }
+        return handlePdsError(err, reply);
+      }
 
       return reply.status(200).send({ ok: true });
     },
@@ -181,9 +194,16 @@ export function registerProfileWriteRoutes(
       const { did, session } = getAuthContext(request);
       const { rkey } = request.params;
 
-      await writeToUserPds(session, did, [
-        buildApplyWritesOp('delete', 'id.sifa.profile.education', rkey),
-      ]);
+      try {
+        await writeToUserPds(session, did, [
+          buildApplyWritesOp('delete', 'id.sifa.profile.education', rkey),
+        ]);
+      } catch (err) {
+        if (isPdsRecordNotFound(err)) {
+          return reply.status(200).send({ ok: true });
+        }
+        return handlePdsError(err, reply);
+      }
 
       return reply.status(200).send({ ok: true });
     },
@@ -243,9 +263,16 @@ export function registerProfileWriteRoutes(
       const { did, session } = getAuthContext(request);
       const { rkey } = request.params;
 
-      await writeToUserPds(session, did, [
-        buildApplyWritesOp('delete', 'id.sifa.profile.skill', rkey),
-      ]);
+      try {
+        await writeToUserPds(session, did, [
+          buildApplyWritesOp('delete', 'id.sifa.profile.skill', rkey),
+        ]);
+      } catch (err) {
+        if (isPdsRecordNotFound(err)) {
+          return reply.status(200).send({ ok: true });
+        }
+        return handlePdsError(err, reply);
+      }
 
       return reply.status(200).send({ ok: true });
     },
@@ -310,7 +337,14 @@ export function registerProfileWriteRoutes(
           .send({ error: 'UnknownCollection', message: `Unknown collection: ${collection}` });
       }
       const { did, session } = getAuthContext(request);
-      await writeToUserPds(session, did, [buildApplyWritesOp('delete', collection, rkey)]);
+      try {
+        await writeToUserPds(session, did, [buildApplyWritesOp('delete', collection, rkey)]);
+      } catch (err) {
+        if (isPdsRecordNotFound(err)) {
+          return reply.status(200).send({ ok: true });
+        }
+        return handlePdsError(err, reply);
+      }
       return reply.status(200).send({ ok: true });
     },
   );
