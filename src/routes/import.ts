@@ -75,9 +75,11 @@ function normalizeLocation(
     // Try to split "City, Country" or "City, Region, Country" format
     const parts = trimmed.split(',').map((p) => p.trim()).filter(Boolean);
     if (parts.length >= 2) {
+      const country = parts[parts.length - 1] ?? trimmed;
+      const city = parts[0] ?? trimmed;
       return {
-        country: parts[parts.length - 1]!,
-        city: parts[0]!,
+        country,
+        city,
         ...(parts.length >= 3 ? { region: parts[1] } : {}),
       };
     }
