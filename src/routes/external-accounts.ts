@@ -128,6 +128,56 @@ export function registerExternalAccountRoutes(
     },
   );
 
+  // PUT /api/profile/external-accounts/:rkey/primary -- set an external account as primary
+  app.put<{ Params: { rkey: string } }>(
+    '/api/profile/external-accounts/:rkey/primary',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { did } = getAuthContext(request);
+      const { rkey } = request.params;
+
+      // Verify the account exists and belongs to this user
+      const [account] = await db
+        .select()
+        .from(externalAccounts)
+        .where(and(eq(externalAccounts.did, did), eq(externalAccounts.rkey, rkey)))
+        .limit(1);
+
+      if (!account) {
+        return reply.status(404).send({ error: 'NotFound', message: 'External account not found' });
+      }
+
+      // Unset all primary flags for this user, then set the requested one
+      await db
+        .update(externalAccounts)
+        .set({ isPrimary: false })
+        .where(eq(externalAccounts.did, did));
+      await db
+        .update(externalAccounts)
+        .set({ isPrimary: true })
+        .where(and(eq(externalAccounts.did, did), eq(externalAccounts.rkey, rkey)));
+
+      return reply.status(200).send({ ok: true });
+    },
+  );
+
+  // DELETE /api/profile/external-accounts/:rkey/primary -- unset an external account as primary
+  app.delete<{ Params: { rkey: string } }>(
+    '/api/profile/external-accounts/:rkey/primary',
+    { preHandler: requireAuth },
+    async (request, reply) => {
+      const { did } = getAuthContext(request);
+      const { rkey } = request.params;
+
+      await db
+        .update(externalAccounts)
+        .set({ isPrimary: false })
+        .where(and(eq(externalAccounts.did, did), eq(externalAccounts.rkey, rkey)));
+
+      return reply.status(200).send({ ok: true });
+    },
+  );
+
   // GET /api/profile/:handleOrDid/external-accounts -- list external accounts with verification
   app.get<{ Params: { handleOrDid: string } }>(
     '/api/profile/:handleOrDid/external-accounts',
@@ -165,6 +215,7 @@ export function registerExternalAccountRoutes(
           url: acc.url,
           label: acc.label,
           feedUrl: acc.feedUrl,
+          primary: acc.isPrimary,
           verifiable,
           verified: verification?.verified ?? false,
           verifiedVia: verification?.verifiedVia ?? null,

@@ -64,6 +64,13 @@
       "when": 1773538800000,
       "tag": "0008_suggestion_dismissals_invites",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1773625200000,
+      "tag": "0009_add_external_account_primary",
+      "breakpoints": true
     }
   ]
 }

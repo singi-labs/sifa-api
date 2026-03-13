@@ -1,0 +1,1 @@
+ALTER TABLE external_accounts ADD COLUMN IF NOT EXISTS is_primary BOOLEAN NOT NULL DEFAULT false;
