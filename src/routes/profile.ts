@@ -203,7 +203,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
       ].filter(Boolean);
       const location = locationParts.length > 0 ? locationParts.join(', ') : null;
 
-      // Find primary external account for website fallback
+      // Find primary external account for website display
       const [primaryAccount] = await db
         .select()
         .from(externalAccounts)
@@ -228,7 +228,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         locationRegion: profile.locationRegion,
         locationCity: profile.locationCity,
         location,
-        website: primaryAccount?.url ?? profile.website ?? null,
+        website: primaryAccount?.url ?? null,
         openTo: profile.openTo,
         preferredWorkplace: profile.preferredWorkplace,
         langs: profile.langs,
