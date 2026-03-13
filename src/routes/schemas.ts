@@ -17,7 +17,6 @@ export const profileSelfSchema = z
     about: z.string().max(50000).optional(),
     industry: z.string().max(100).optional(),
     location: locationSchema,
-    website: z.string().url().optional(),
     openTo: z.array(z.string()).max(10).optional(),
     preferredWorkplace: z.array(z.string()).max(3).optional(),
     langs: z.array(z.string()).max(3).optional(),
