@@ -4,7 +4,13 @@ import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import type { Database } from '../db/index.js';
 import { connections } from '../db/schema/index.js';
 import { and, eq } from 'drizzle-orm';
-import { generateTid, buildApplyWritesOp, writeToUserPds, isPdsRecordNotFound, handlePdsError } from '../services/pds-writer.js';
+import {
+  generateTid,
+  buildApplyWritesOp,
+  writeToUserPds,
+  isPdsRecordNotFound,
+  handlePdsError,
+} from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 
 const followSchema = z.object({

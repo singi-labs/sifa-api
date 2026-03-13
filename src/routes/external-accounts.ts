@@ -5,7 +5,13 @@ import type { Database } from '../db/index.js';
 import type { ValkeyClient } from '../cache/index.js';
 import { externalAccounts, externalAccountVerifications, profiles } from '../db/schema/index.js';
 import { externalAccountSchema } from './schemas.js';
-import { generateTid, buildApplyWritesOp, writeToUserPds, isPdsRecordNotFound, handlePdsError } from '../services/pds-writer.js';
+import {
+  generateTid,
+  buildApplyWritesOp,
+  writeToUserPds,
+  isPdsRecordNotFound,
+  handlePdsError,
+} from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { discoverFeedUrl, fetchFeedItems } from '../services/feed-discovery.js';
 import { checkAndStoreVerification, isVerifiablePlatform } from '../services/verification.js';
