@@ -4,15 +4,53 @@ const FETCH_TIMEOUT = 10000;
 
 export async function discoverFeedUrl(platform: string, url: string): Promise<string | null> {
   try {
+    if (platform === 'youtube') {
+      return discoverYoutubeFeed(url);
+    }
     if (platform === 'fediverse') {
       return discoverFediverseFeed(url);
     }
-    if (platform === 'rss' || platform === 'website') {
+    if (platform === 'rss') {
+      return url;
+    }
+    if (platform === 'website') {
       return discoverRssFeed(url);
     }
     return null;
   } catch (err) {
     logger.warn({ err, platform, url }, 'Feed discovery failed');
+    return null;
+  }
+}
+
+async function discoverYoutubeFeed(url: string): Promise<string | null> {
+  try {
+    const parsed = new URL(url);
+    if (!parsed.hostname.includes('youtube.com') && !parsed.hostname.includes('youtu.be')) {
+      return null;
+    }
+
+    // Direct channel ID URL: /channel/UC...
+    const channelMatch = parsed.pathname.match(/\/channel\/(UC[\w-]+)/);
+    if (channelMatch?.[1]) {
+      return `https://www.youtube.com/feeds/videos.xml?channel_id=${channelMatch[1]}`;
+    }
+
+    // For /@handle or /c/name URLs, fetch the page to extract the channel ID
+    const response = await fetch(url, {
+      signal: AbortSignal.timeout(FETCH_TIMEOUT),
+      headers: { 'User-Agent': 'Sifa/1.0 (+https://sifa.id)' },
+    });
+    if (!response.ok) return null;
+
+    const html = await response.text();
+    const idMatch = html.match(/channel_id=([A-Za-z0-9_-]+)/);
+    if (idMatch?.[1]) {
+      return `https://www.youtube.com/feeds/videos.xml?channel_id=${idMatch[1]}`;
+    }
+
+    return null;
+  } catch {
     return null;
   }
 }

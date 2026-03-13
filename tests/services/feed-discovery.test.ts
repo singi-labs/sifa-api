@@ -4,6 +4,7 @@ import { discoverFeedUrl, fetchFeedItems } from '../../src/services/feed-discove
 const mockFetch = vi.fn();
 
 beforeEach(() => {
+  mockFetch.mockReset();
   vi.stubGlobal('fetch', mockFetch);
 });
 
@@ -52,15 +53,54 @@ describe('discoverFeedUrl', () => {
     expect(result).toBeNull();
   });
 
-  it('returns the URL itself when it is an RSS feed', async () => {
-    mockFetch.mockResolvedValue({
-      ok: true,
-      headers: new Map([['content-type', 'application/rss+xml']]),
-      text: () => Promise.resolve('<rss></rss>'),
-    });
-
+  it('returns the URL itself for RSS platform without fetching', async () => {
     const result = await discoverFeedUrl('rss', 'https://example.com/feed.xml');
     expect(result).toBe('https://example.com/feed.xml');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('discovers YouTube feed from /channel/ URL', async () => {
+    const result = await discoverFeedUrl(
+      'youtube',
+      'https://www.youtube.com/channel/UCxyz123ABC',
+    );
+    expect(result).toBe(
+      'https://www.youtube.com/feeds/videos.xml?channel_id=UCxyz123ABC',
+    );
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('discovers YouTube feed from /@handle URL by fetching page', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: () =>
+        Promise.resolve(
+          '<html><link rel="alternate" href="https://www.youtube.com/feeds/videos.xml?channel_id=UCabc456DEF"></html>',
+        ),
+    });
+
+    const result = await discoverFeedUrl(
+      'youtube',
+      'https://www.youtube.com/@testchannel',
+    );
+    expect(result).toBe(
+      'https://www.youtube.com/feeds/videos.xml?channel_id=UCabc456DEF',
+    );
+  });
+
+  it('returns null for YouTube URL when channel ID cannot be found', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      text: () => Promise.resolve('<html><head><title>YouTube</title></head></html>'),
+    });
+
+    const result = await discoverFeedUrl('youtube', 'https://www.youtube.com/@unknown');
+    expect(result).toBeNull();
+  });
+
+  it('returns null for non-YouTube URLs with youtube platform', async () => {
+    const result = await discoverFeedUrl('youtube', 'https://example.com/not-youtube');
+    expect(result).toBeNull();
   });
 });
 
