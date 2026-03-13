@@ -425,7 +425,9 @@ export function registerProfileWriteRoutes(
           rkey: 'self',
         });
         const r = profileRes.data.value as Record<string, unknown>;
-        const loc = r.location as { country?: string; region?: string; city?: string } | undefined;
+        const loc = r.location as
+          | { country?: string; region?: string; city?: string; countryCode?: string }
+          | undefined;
         await db
           .insert(profilesTable)
           .values({
@@ -439,6 +441,7 @@ export function registerProfileWriteRoutes(
             locationCountry: sanitizeOptional(loc?.country) ?? null,
             locationRegion: sanitizeOptional(loc?.region) ?? null,
             locationCity: sanitizeOptional(loc?.city) ?? null,
+            countryCode: sanitizeOptional(loc?.countryCode) ?? null,
             createdAt: now,
             indexedAt: now,
             updatedAt: now,
@@ -452,6 +455,7 @@ export function registerProfileWriteRoutes(
               locationCountry: sanitizeOptional(loc?.country) ?? null,
               locationRegion: sanitizeOptional(loc?.region) ?? null,
               locationCity: sanitizeOptional(loc?.city) ?? null,
+              countryCode: sanitizeOptional(loc?.countryCode) ?? null,
               updatedAt: now,
             },
           });
@@ -496,7 +500,7 @@ export function registerProfileWriteRoutes(
           const rkey = rec.uri.split('/').pop() ?? '';
           const r = rec.value as Record<string, unknown>;
           const loc = r.location as
-            | { country?: string; region?: string; city?: string }
+            | { country?: string; region?: string; city?: string; countryCode?: string }
             | undefined;
           await db
             .insert(positionsTable)
@@ -509,6 +513,7 @@ export function registerProfileWriteRoutes(
               locationCountry: sanitizeOptional(loc?.country) ?? null,
               locationRegion: sanitizeOptional(loc?.region) ?? null,
               locationCity: sanitizeOptional(loc?.city) ?? null,
+              countryCode: sanitizeOptional(loc?.countryCode) ?? null,
               startDate: (r.startDate as string) ?? '',
               endDate: (r.endDate as string) ?? null,
               current: (r.current as boolean) ?? false,
@@ -524,6 +529,7 @@ export function registerProfileWriteRoutes(
                 locationCountry: sanitizeOptional(loc?.country) ?? null,
                 locationRegion: sanitizeOptional(loc?.region) ?? null,
                 locationCity: sanitizeOptional(loc?.city) ?? null,
+                countryCode: sanitizeOptional(loc?.countryCode) ?? null,
                 startDate: (r.startDate as string) ?? '',
                 endDate: (r.endDate as string) ?? null,
                 current: (r.current as boolean) ?? false,
