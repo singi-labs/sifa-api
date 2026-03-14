@@ -30,15 +30,20 @@ export async function buildPdsDeleteOps(
 ): Promise<ApplyWritesOp[]> {
   const ops: ApplyWritesOp[] = [];
   for (const collection of collections) {
-    const existing = await agent.com.atproto.repo.listRecords({
-      repo: did,
-      collection,
-      limit: 100,
-    });
-    for (const rec of existing.data.records) {
-      const rkey = rec.uri.split('/').pop() ?? '';
-      if (rkey) ops.push(buildApplyWritesOp('delete', collection, rkey));
-    }
+    let cursor: string | undefined;
+    do {
+      const existing = await agent.com.atproto.repo.listRecords({
+        repo: did,
+        collection,
+        limit: 100,
+        cursor,
+      });
+      for (const rec of existing.data.records) {
+        const rkey = rec.uri.split('/').pop() ?? '';
+        if (rkey) ops.push(buildApplyWritesOp('delete', collection, rkey));
+      }
+      cursor = existing.data.cursor;
+    } while (cursor);
   }
   return ops;
 }
@@ -50,9 +55,14 @@ export async function wipeSifaData(
 ): Promise<void> {
   const agent = new Agent(session);
   const ops = await buildPdsDeleteOps(agent, did, SIFA_COLLECTIONS);
-  if (ops.length > 0) {
-    await writeToUserPds(session, did, ops);
+
+  // applyWrites has a 200-op limit per call
+  const BATCH_SIZE = 200;
+  for (let i = 0; i < ops.length; i += BATCH_SIZE) {
+    const batch = ops.slice(i, i + BATCH_SIZE);
+    await writeToUserPds(session, did, batch);
   }
+
   await db.delete(profiles).where(eq(profiles.did, did));
   await db.delete(externalAccountVerifications).where(eq(externalAccountVerifications.did, did));
 }
