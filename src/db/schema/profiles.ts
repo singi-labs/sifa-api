@@ -15,6 +15,7 @@ export const profiles = pgTable(
     locationCountry: text('location_country'),
     locationRegion: text('location_region'),
     locationCity: text('location_city'),
+    countryCode: text('country_code'),
     openTo: text('open_to').array(),
     preferredWorkplace: text('preferred_workplace').array(),
     langs: text('langs').array(),

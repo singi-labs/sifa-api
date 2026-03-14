@@ -66,8 +66,11 @@ type ImportHonor = z.infer<typeof honorSchema>;
 type ImportLanguage = z.infer<typeof languageSchema>;
 
 function normalizeLocation(
-  location: string | { country: string; region?: string; city?: string } | undefined,
-): { country: string; region?: string; city?: string } | undefined {
+  location:
+    | string
+    | { country: string; region?: string; city?: string; countryCode?: string }
+    | undefined,
+): { country: string; region?: string; city?: string; countryCode?: string } | undefined {
   if (!location) return undefined;
   if (typeof location === 'string') {
     const trimmed = location.trim();
@@ -93,6 +96,7 @@ function normalizeLocation(
     country: sanitize(location.country),
     region: sanitizeOptional(location.region),
     city: sanitizeOptional(location.city),
+    countryCode: sanitizeOptional(location.countryCode),
   };
 }
 
@@ -487,6 +491,7 @@ export function registerImportRoutes(
           locationCountry: normalizeLocation(cleanProfile?.location)?.country ?? null,
           locationRegion: normalizeLocation(cleanProfile?.location)?.region ?? null,
           locationCity: normalizeLocation(cleanProfile?.location)?.city ?? null,
+          countryCode: normalizeLocation(cleanProfile?.location)?.countryCode ?? null,
           createdAt: now,
           indexedAt: now,
           updatedAt: now,
@@ -509,6 +514,7 @@ export function registerImportRoutes(
                     locationCountry: normalizeLocation(cleanProfile.location)?.country ?? null,
                     locationRegion: normalizeLocation(cleanProfile.location)?.region ?? null,
                     locationCity: normalizeLocation(cleanProfile.location)?.city ?? null,
+                    countryCode: normalizeLocation(cleanProfile.location)?.countryCode ?? null,
                   }
                 : {}),
               updatedAt: now,
@@ -529,6 +535,7 @@ export function registerImportRoutes(
               locationCountry: loc?.country ?? null,
               locationRegion: loc?.region ?? null,
               locationCity: loc?.city ?? null,
+              countryCode: loc?.countryCode ?? null,
               startDate: data.startDate ?? '',
               endDate: data.endDate ?? null,
               current: data.current ?? false,
@@ -544,6 +551,7 @@ export function registerImportRoutes(
                 locationCountry: loc?.country ?? null,
                 locationRegion: loc?.region ?? null,
                 locationCity: loc?.city ?? null,
+                countryCode: loc?.countryCode ?? null,
                 startDate: data.startDate ?? '',
                 endDate: data.endDate ?? null,
                 current: data.current ?? false,

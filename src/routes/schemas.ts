@@ -6,6 +6,7 @@ const locationSchema = z
       country: z.string(),
       region: z.string().optional(),
       city: z.string().optional(),
+      countryCode: z.string().length(2).optional(),
     }),
     z.string(),
   ])

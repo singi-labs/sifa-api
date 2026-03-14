@@ -9,6 +9,7 @@ interface RecordLocation {
   country?: string;
   region?: string;
   city?: string;
+  countryCode?: string;
 }
 
 export function createProfileIndexer(db: Database) {
@@ -30,6 +31,7 @@ export function createProfileIndexer(db: Database) {
           locationCountry: null,
           locationRegion: null,
           locationCity: null,
+          countryCode: null,
           openTo: null,
           preferredWorkplace: null,
           langs: null,
@@ -55,6 +57,7 @@ export function createProfileIndexer(db: Database) {
         locationCountry: sanitizeOptional(location?.country) ?? null,
         locationRegion: sanitizeOptional(location?.region) ?? null,
         locationCity: sanitizeOptional(location?.city) ?? null,
+        countryCode: sanitizeOptional(location?.countryCode) ?? null,
         openTo: (record.openTo as string[]) ?? null,
         preferredWorkplace: (record.preferredWorkplace as string[]) ?? null,
         langs: (record.langs as string[]) ?? null,
@@ -71,6 +74,7 @@ export function createProfileIndexer(db: Database) {
           locationCountry: sanitizeOptional(location?.country) ?? null,
           locationRegion: sanitizeOptional(location?.region) ?? null,
           locationCity: sanitizeOptional(location?.city) ?? null,
+          countryCode: sanitizeOptional(location?.countryCode) ?? null,
           openTo: (record.openTo as string[]) ?? null,
           preferredWorkplace: (record.preferredWorkplace as string[]) ?? null,
           langs: (record.langs as string[]) ?? null,
