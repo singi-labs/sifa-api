@@ -31,14 +31,14 @@ describe('resolveSkill (integration)', () => {
   it('resolves an alias to canonical skill', async () => {
     const result = await resolveSkill(db, 'JS');
     expect(result).not.toBeNull();
-    expect(result!.canonicalName).toBe('JavaScript');
-    expect(result!.slug).toBe('javascript');
+    expect(result?.canonicalName).toBe('JavaScript');
+    expect(result?.slug).toBe('javascript');
   });
 
   it('resolves exact canonical name', async () => {
     const result = await resolveSkill(db, 'JavaScript');
     expect(result).not.toBeNull();
-    expect(result!.canonicalName).toBe('JavaScript');
+    expect(result?.canonicalName).toBe('JavaScript');
   });
 
   it('returns null and queues unresolved skill when no match found', async () => {
