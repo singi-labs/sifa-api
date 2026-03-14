@@ -2,9 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { buildPdsDeleteOps } from '../../src/services/profile-wipe.js';
 import type { Agent } from '@atproto/api';
 
-function createMockAgent(
-  recordsByCollection: Record<string, Array<{ uri: string }>>,
-): Agent {
+function createMockAgent(recordsByCollection: Record<string, Array<{ uri: string }>>): Agent {
   return {
     com: {
       atproto: {
@@ -57,15 +55,9 @@ describe('buildPdsDeleteOps', () => {
 
   it('iterates all provided collections', async () => {
     const agent = createMockAgent({
-      'id.sifa.profile.self': [
-        { uri: 'at://did:plc:abc/id.sifa.profile.self/self' },
-      ],
-      'id.sifa.profile.skill': [
-        { uri: 'at://did:plc:abc/id.sifa.profile.skill/ts' },
-      ],
-      'id.sifa.profile.education': [
-        { uri: 'at://did:plc:abc/id.sifa.profile.education/uni1' },
-      ],
+      'id.sifa.profile.self': [{ uri: 'at://did:plc:abc/id.sifa.profile.self/self' }],
+      'id.sifa.profile.skill': [{ uri: 'at://did:plc:abc/id.sifa.profile.skill/ts' }],
+      'id.sifa.profile.education': [{ uri: 'at://did:plc:abc/id.sifa.profile.education/uni1' }],
     });
 
     const collections = [

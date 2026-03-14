@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { wipeSifaData, buildPdsDeleteOps, SIFA_COLLECTIONS } from '../../src/services/profile-wipe.js';
+import {
+  wipeSifaData,
+  buildPdsDeleteOps,
+  SIFA_COLLECTIONS,
+} from '../../src/services/profile-wipe.js';
 
 describe('profile-wipe module', () => {
   it('exports wipeSifaData as a function', () => {

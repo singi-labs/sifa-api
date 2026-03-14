@@ -34,7 +34,10 @@ import {
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
 import { wipeSifaData } from '../services/profile-wipe.js';
-import { sessions as sessionsTable, oauthSessions as oauthSessionsTable } from '../db/schema/index.js';
+import {
+  sessions as sessionsTable,
+  oauthSessions as oauthSessionsTable,
+} from '../db/schema/index.js';
 
 const overrideSchema = z.object({
   headline: z.string().max(300).nullish(),
@@ -958,7 +961,9 @@ export function registerProfileWriteRoutes(
         await wipeSifaData(session, did, db);
       } catch (err) {
         app.log.error({ err, did }, 'Profile reset failed');
-        return reply.status(500).send({ error: 'ResetFailed', message: 'Failed to reset profile data' });
+        return reply
+          .status(500)
+          .send({ error: 'ResetFailed', message: 'Failed to reset profile data' });
       }
 
       app.log.info({ did }, 'Profile reset completed');
@@ -986,7 +991,9 @@ export function registerProfileWriteRoutes(
         await wipeSifaData(session, did, db);
       } catch (err) {
         app.log.error({ err, did }, 'Account deletion failed');
-        return reply.status(500).send({ error: 'DeleteFailed', message: 'Failed to delete account' });
+        return reply
+          .status(500)
+          .send({ error: 'DeleteFailed', message: 'Failed to delete account' });
       }
 
       // Logout: destroy session and revoke OAuth tokens
