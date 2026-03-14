@@ -67,7 +67,9 @@ describe('Search API', () => {
 
   afterAll(async () => {
     await db.execute(sql`DELETE FROM positions WHERE did = 'did:plc:search-with-role'`);
-    await db.execute(sql`DELETE FROM profiles WHERE did IN ('did:plc:search-test', 'did:plc:search-with-role')`);
+    await db.execute(
+      sql`DELETE FROM profiles WHERE did IN ('did:plc:search-test', 'did:plc:search-with-role')`,
+    );
     await db.$client.end();
     await app.close();
     rmSync(tmpKeysDir, { recursive: true });
@@ -126,9 +128,7 @@ describe('Search API', () => {
     const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=TypeScript' });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    const noRole = body.profiles.find(
-      (p: { did: string }) => p.did === 'did:plc:search-test',
-    );
+    const noRole = body.profiles.find((p: { did: string }) => p.did === 'did:plc:search-test');
     expect(noRole).toBeDefined();
     expect(noRole.currentRole).toBeUndefined();
     expect(noRole.currentCompany).toBeUndefined();
