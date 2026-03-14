@@ -33,6 +33,11 @@ import {
 } from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
+import { wipeSifaData } from '../services/profile-wipe.js';
+import {
+  sessions as sessionsTable,
+  oauthSessions as oauthSessionsTable,
+} from '../db/schema/index.js';
 
 const overrideSchema = z.object({
   headline: z.string().max(300).nullish(),
@@ -944,4 +949,73 @@ export function registerProfileWriteRoutes(
 
     return reply.status(200).send({ ok: true });
   });
+
+  // DELETE /api/profile/reset -- wipe all Sifa data from PDS and local DB (keep account)
+  app.delete(
+    '/api/profile/reset',
+    { preHandler: requireAuth, config: { rateLimit: { max: 3, timeWindow: '1 hour' } } },
+    async (request, reply) => {
+      const { did, session } = getAuthContext(request);
+
+      try {
+        await wipeSifaData(session, did, db);
+      } catch (err) {
+        app.log.error({ err, did }, 'Profile reset failed');
+        return reply
+          .status(500)
+          .send({ error: 'ResetFailed', message: 'Failed to reset profile data' });
+      }
+
+      app.log.info({ did }, 'Profile reset completed');
+      return reply.status(200).send({ ok: true });
+    },
+  );
+
+  // DELETE /api/profile/account -- wipe all Sifa data, then logout and destroy session
+  app.delete(
+    '/api/profile/account',
+    { preHandler: requireAuth, config: { rateLimit: { max: 3, timeWindow: '1 hour' } } },
+    async (request, reply) => {
+      const { did, session } = getAuthContext(request);
+      let handle: string | undefined;
+
+      try {
+        // Read handle before wiping so we can return it for redirect
+        const [profileRow] = await db
+          .select({ handle: profilesTable.handle })
+          .from(profilesTable)
+          .where(eq(profilesTable.did, did))
+          .limit(1);
+        handle = profileRow?.handle ?? undefined;
+
+        await wipeSifaData(session, did, db);
+      } catch (err) {
+        app.log.error({ err, did }, 'Account deletion failed');
+        return reply
+          .status(500)
+          .send({ error: 'DeleteFailed', message: 'Failed to delete account' });
+      }
+
+      // Logout: destroy session and revoke OAuth tokens
+      const sessionId = request.cookies?.session;
+      if (sessionId) {
+        await db.delete(sessionsTable).where(eq(sessionsTable.id, sessionId));
+      }
+      await db
+        .delete(oauthSessionsTable)
+        .where(eq(oauthSessionsTable.did, did))
+        .catch((err: unknown) => {
+          app.log.error({ err, did }, 'Failed to delete OAuth sessions during account deletion');
+        });
+      if (oauthClient) {
+        await oauthClient.revoke(did).catch((err: unknown) => {
+          app.log.warn({ err, did }, 'Failed to revoke OAuth token during account deletion');
+        });
+      }
+      reply.clearCookie('session', { path: '/' });
+
+      app.log.info({ did }, 'Account deletion completed');
+      return reply.status(200).send({ ok: true, handle });
+    },
+  );
 }
