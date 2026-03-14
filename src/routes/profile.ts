@@ -18,6 +18,7 @@ import {
   externalAccounts,
   externalAccountVerifications,
   invites,
+  skillPositionLinks,
 } from '../db/schema/index.js';
 import { resolveSessionDid } from '../middleware/auth.js';
 import { isVerifiablePlatform } from '../services/verification.js';
@@ -146,6 +147,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         profileLanguages,
         profileExternalAccounts,
         verifications,
+        profileSkillPositionLinks,
       ] = await Promise.all([
         db.select().from(positions).where(eq(positions.did, profile.did)),
         db.select().from(education).where(eq(education.did, profile.did)),
@@ -162,6 +164,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
           .select()
           .from(externalAccountVerifications)
           .where(eq(externalAccountVerifications.did, profile.did)),
+        db.select().from(skillPositionLinks).where(eq(skillPositionLinks.did, profile.did)),
       ]);
 
       const resolved = resolveProfileFields(
@@ -203,6 +206,19 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         profile.locationCountry,
       ].filter(Boolean);
       const location = locationParts.length > 0 ? locationParts.join(', ') : null;
+
+      // Build skill-position link lookup maps
+      const linksBySkill = new Map<string, string[]>();
+      const linksByPosition = new Map<string, string[]>();
+      for (const link of profileSkillPositionLinks) {
+        const skillList = linksBySkill.get(link.skillRkey) ?? [];
+        skillList.push(link.positionRkey);
+        linksBySkill.set(link.skillRkey, skillList);
+
+        const posList = linksByPosition.get(link.positionRkey) ?? [];
+        posList.push(link.skillRkey);
+        linksByPosition.set(link.positionRkey, posList);
+      }
 
       // Find primary external account for website display
       const [primaryAccount] = await db
@@ -250,6 +266,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
           startDate: p.startDate,
           endDate: p.endDate,
           current: p.current,
+          skillRkeys: linksByPosition.get(p.rkey) ?? [],
         })),
         education: profileEducation.map((e) => ({
           rkey: e.rkey,
@@ -265,6 +282,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
           rkey: s.rkey,
           skillName: s.skillName,
           category: s.category,
+          positionRkeys: linksBySkill.get(s.rkey) ?? [],
         })),
         certifications: profileCertifications.map((c) => ({
           rkey: c.rkey,
