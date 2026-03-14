@@ -71,6 +71,20 @@
       "when": 1773625200000,
       "tag": "0009_add_external_account_primary",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1773626400000,
+      "tag": "0010_drop_profile_website",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1773712800000,
+      "tag": "0011_add_country_code",
+      "breakpoints": true
     }
   ]
 }

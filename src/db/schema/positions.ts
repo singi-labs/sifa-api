@@ -17,6 +17,7 @@ export const positions = pgTable(
     locationCountry: text('location_country'),
     locationRegion: text('location_region'),
     locationCity: text('location_city'),
+    countryCode: text('country_code'),
     startDate: text('start_date').notNull(),
     endDate: text('end_date'),
     current: boolean('current').notNull().default(false),

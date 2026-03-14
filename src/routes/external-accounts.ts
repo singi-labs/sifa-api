@@ -5,7 +5,13 @@ import type { Database } from '../db/index.js';
 import type { ValkeyClient } from '../cache/index.js';
 import { externalAccounts, externalAccountVerifications, profiles } from '../db/schema/index.js';
 import { externalAccountSchema } from './schemas.js';
-import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
+import {
+  generateTid,
+  buildApplyWritesOp,
+  writeToUserPds,
+  isPdsRecordNotFound,
+  handlePdsError,
+} from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { discoverFeedUrl, fetchFeedItems } from '../services/feed-discovery.js';
 import { checkAndStoreVerification, isVerifiablePlatform } from '../services/verification.js';
@@ -44,6 +50,7 @@ export function registerExternalAccountRoutes(
         url: parsed.data.url,
         ...(parsed.data.label ? { label: parsed.data.label } : {}),
         ...(feedUrl ? { feedUrl } : {}),
+        isPrimary: false,
       };
 
       await writeToUserPds(session, did, [
@@ -79,6 +86,13 @@ export function registerExternalAccountRoutes(
       const { did, session } = getAuthContext(request);
       const { rkey } = request.params;
 
+      // Preserve existing isPrimary when updating other fields
+      const [existing] = await db
+        .select()
+        .from(externalAccounts)
+        .where(and(eq(externalAccounts.did, did), eq(externalAccounts.rkey, rkey)))
+        .limit(1);
+
       let feedUrl = parsed.data.feedUrl;
       if (!feedUrl) {
         feedUrl = (await discoverFeedUrl(parsed.data.platform, parsed.data.url)) ?? undefined;
@@ -90,6 +104,7 @@ export function registerExternalAccountRoutes(
         url: parsed.data.url,
         ...(parsed.data.label ? { label: parsed.data.label } : {}),
         ...(feedUrl ? { feedUrl } : {}),
+        isPrimary: existing?.isPrimary ?? false,
       };
 
       await writeToUserPds(session, did, [
@@ -120,9 +135,16 @@ export function registerExternalAccountRoutes(
       const { did, session } = getAuthContext(request);
       const { rkey } = request.params;
 
-      await writeToUserPds(session, did, [
-        buildApplyWritesOp('delete', 'id.sifa.profile.externalAccount', rkey),
-      ]);
+      try {
+        await writeToUserPds(session, did, [
+          buildApplyWritesOp('delete', 'id.sifa.profile.externalAccount', rkey),
+        ]);
+      } catch (err) {
+        if (isPdsRecordNotFound(err)) {
+          return reply.status(200).send({ ok: true });
+        }
+        return handlePdsError(err, reply);
+      }
 
       return reply.status(200).send({ ok: true });
     },
@@ -133,7 +155,7 @@ export function registerExternalAccountRoutes(
     '/api/profile/external-accounts/:rkey/primary',
     { preHandler: requireAuth },
     async (request, reply) => {
-      const { did } = getAuthContext(request);
+      const { did, session } = getAuthContext(request);
       const { rkey } = request.params;
 
       // Verify the account exists and belongs to this user
@@ -147,7 +169,44 @@ export function registerExternalAccountRoutes(
         return reply.status(404).send({ error: 'NotFound', message: 'External account not found' });
       }
 
-      // Unset all primary flags for this user, then set the requested one
+      // Find current primary to unset in PDS
+      const [currentPrimary] = await db
+        .select()
+        .from(externalAccounts)
+        .where(and(eq(externalAccounts.did, did), eq(externalAccounts.isPrimary, true)))
+        .limit(1);
+
+      const ops = [];
+
+      // Unset old primary in PDS
+      if (currentPrimary && currentPrimary.rkey !== rkey) {
+        ops.push(
+          buildApplyWritesOp('update', 'id.sifa.profile.externalAccount', currentPrimary.rkey, {
+            createdAt: currentPrimary.createdAt.toISOString(),
+            platform: currentPrimary.platform,
+            url: currentPrimary.url,
+            ...(currentPrimary.label ? { label: currentPrimary.label } : {}),
+            ...(currentPrimary.feedUrl ? { feedUrl: currentPrimary.feedUrl } : {}),
+            isPrimary: false,
+          }),
+        );
+      }
+
+      // Set new primary in PDS
+      ops.push(
+        buildApplyWritesOp('update', 'id.sifa.profile.externalAccount', rkey, {
+          createdAt: account.createdAt.toISOString(),
+          platform: account.platform,
+          url: account.url,
+          ...(account.label ? { label: account.label } : {}),
+          ...(account.feedUrl ? { feedUrl: account.feedUrl } : {}),
+          isPrimary: true,
+        }),
+      );
+
+      await writeToUserPds(session, did, ops);
+
+      // Update local DB
       await db
         .update(externalAccounts)
         .set({ isPrimary: false })
@@ -166,8 +225,27 @@ export function registerExternalAccountRoutes(
     '/api/profile/external-accounts/:rkey/primary',
     { preHandler: requireAuth },
     async (request, reply) => {
-      const { did } = getAuthContext(request);
+      const { did, session } = getAuthContext(request);
       const { rkey } = request.params;
+
+      const [account] = await db
+        .select()
+        .from(externalAccounts)
+        .where(and(eq(externalAccounts.did, did), eq(externalAccounts.rkey, rkey)))
+        .limit(1);
+
+      if (account) {
+        await writeToUserPds(session, did, [
+          buildApplyWritesOp('update', 'id.sifa.profile.externalAccount', rkey, {
+            createdAt: account.createdAt.toISOString(),
+            platform: account.platform,
+            url: account.url,
+            ...(account.label ? { label: account.label } : {}),
+            ...(account.feedUrl ? { feedUrl: account.feedUrl } : {}),
+            isPrimary: false,
+          }),
+        ]);
+      }
 
       await db
         .update(externalAccounts)

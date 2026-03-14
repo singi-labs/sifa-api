@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { buildServer } from '../../src/server.js';
 import { createDb } from '../../src/db/index.js';
-import { profiles } from '../../src/db/schema/index.js';
+import { profiles, positions } from '../../src/db/schema/index.js';
 import { sql } from 'drizzle-orm';
 import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -29,6 +29,30 @@ describe('Search API', () => {
       })
       .onConflictDoNothing();
 
+    // Profile with a current position
+    await db
+      .insert(profiles)
+      .values({
+        did: 'did:plc:search-with-role',
+        handle: 'searchwithrole.bsky.social',
+        headline: 'TypeScript Engineer',
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
+
+    await db
+      .insert(positions)
+      .values({
+        did: 'did:plc:search-with-role',
+        rkey: '3searchpos',
+        companyName: 'Acme Corp',
+        title: 'Staff Engineer',
+        startDate: '2023-01',
+        current: true,
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
+
     app = await buildServer({
       NODE_ENV: 'test',
       PORT: 0,
@@ -42,7 +66,10 @@ describe('Search API', () => {
   });
 
   afterAll(async () => {
-    await db.execute(sql`DELETE FROM profiles WHERE did = 'did:plc:search-test'`);
+    await db.execute(sql`DELETE FROM positions WHERE did = 'did:plc:search-with-role'`);
+    await db.execute(
+      sql`DELETE FROM profiles WHERE did IN ('did:plc:search-test', 'did:plc:search-with-role')`,
+    );
     await db.$client.end();
     await app.close();
     rmSync(tmpKeysDir, { recursive: true });
@@ -83,5 +110,35 @@ describe('Search API', () => {
   it('GET /api/search/profiles returns 400 for empty query string', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=' });
     expect(res.statusCode).toBe(400);
+  });
+
+  it('includes currentRole and currentCompany when profile has a current position', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=TypeScript' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    const withRole = body.profiles.find(
+      (p: { did: string }) => p.did === 'did:plc:search-with-role',
+    );
+    expect(withRole).toBeDefined();
+    expect(withRole.currentRole).toBe('Staff Engineer');
+    expect(withRole.currentCompany).toBe('Acme Corp');
+  });
+
+  it('omits currentRole and currentCompany when profile has no current position', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=TypeScript' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    const noRole = body.profiles.find((p: { did: string }) => p.did === 'did:plc:search-test');
+    expect(noRole).toBeDefined();
+    expect(noRole.currentRole).toBeUndefined();
+    expect(noRole.currentCompany).toBeUndefined();
+  });
+
+  it('does not leak rank field in response', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=TypeScript' });
+    const body = res.json();
+    for (const profile of body.profiles) {
+      expect(profile.rank).toBeUndefined();
+    }
   });
 });

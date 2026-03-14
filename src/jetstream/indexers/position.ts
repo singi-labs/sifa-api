@@ -9,6 +9,7 @@ interface RecordLocation {
   country?: string;
   region?: string;
   city?: string;
+  countryCode?: string;
 }
 
 export function createPositionIndexer(db: Database) {
@@ -42,6 +43,7 @@ export function createPositionIndexer(db: Database) {
         locationCountry: sanitizeOptional(location?.country) ?? null,
         locationRegion: sanitizeOptional(location?.region) ?? null,
         locationCity: sanitizeOptional(location?.city) ?? null,
+        countryCode: sanitizeOptional(location?.countryCode) ?? null,
         startDate: record.startDate as string,
         endDate: (record.endDate as string) ?? null,
         current: (record.current as boolean) ?? false,
@@ -60,6 +62,7 @@ export function createPositionIndexer(db: Database) {
           locationCountry: sanitizeOptional(location?.country) ?? null,
           locationRegion: sanitizeOptional(location?.region) ?? null,
           locationCity: sanitizeOptional(location?.city) ?? null,
+          countryCode: sanitizeOptional(location?.countryCode) ?? null,
           startDate: record.startDate as string,
           endDate: (record.endDate as string) ?? null,
           current: (record.current as boolean) ?? false,

@@ -24,9 +24,20 @@ import {
   skillSchema,
   COLLECTION_SCHEMAS,
 } from './schemas.js';
-import { generateTid, buildApplyWritesOp, writeToUserPds } from '../services/pds-writer.js';
+import {
+  generateTid,
+  buildApplyWritesOp,
+  writeToUserPds,
+  isPdsRecordNotFound,
+  handlePdsError,
+} from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
+import { wipeSifaData } from '../services/profile-wipe.js';
+import {
+  sessions as sessionsTable,
+  oauthSessions as oauthSessionsTable,
+} from '../db/schema/index.js';
 
 const overrideSchema = z.object({
   headline: z.string().max(300).nullish(),
@@ -119,9 +130,16 @@ export function registerProfileWriteRoutes(
       const { did, session } = getAuthContext(request);
       const { rkey } = request.params;
 
-      await writeToUserPds(session, did, [
-        buildApplyWritesOp('delete', 'id.sifa.profile.position', rkey),
-      ]);
+      try {
+        await writeToUserPds(session, did, [
+          buildApplyWritesOp('delete', 'id.sifa.profile.position', rkey),
+        ]);
+      } catch (err) {
+        if (isPdsRecordNotFound(err)) {
+          return reply.status(200).send({ ok: true });
+        }
+        return handlePdsError(err, reply);
+      }
 
       return reply.status(200).send({ ok: true });
     },
@@ -181,9 +199,16 @@ export function registerProfileWriteRoutes(
       const { did, session } = getAuthContext(request);
       const { rkey } = request.params;
 
-      await writeToUserPds(session, did, [
-        buildApplyWritesOp('delete', 'id.sifa.profile.education', rkey),
-      ]);
+      try {
+        await writeToUserPds(session, did, [
+          buildApplyWritesOp('delete', 'id.sifa.profile.education', rkey),
+        ]);
+      } catch (err) {
+        if (isPdsRecordNotFound(err)) {
+          return reply.status(200).send({ ok: true });
+        }
+        return handlePdsError(err, reply);
+      }
 
       return reply.status(200).send({ ok: true });
     },
@@ -243,9 +268,16 @@ export function registerProfileWriteRoutes(
       const { did, session } = getAuthContext(request);
       const { rkey } = request.params;
 
-      await writeToUserPds(session, did, [
-        buildApplyWritesOp('delete', 'id.sifa.profile.skill', rkey),
-      ]);
+      try {
+        await writeToUserPds(session, did, [
+          buildApplyWritesOp('delete', 'id.sifa.profile.skill', rkey),
+        ]);
+      } catch (err) {
+        if (isPdsRecordNotFound(err)) {
+          return reply.status(200).send({ ok: true });
+        }
+        return handlePdsError(err, reply);
+      }
 
       return reply.status(200).send({ ok: true });
     },
@@ -310,7 +342,14 @@ export function registerProfileWriteRoutes(
           .send({ error: 'UnknownCollection', message: `Unknown collection: ${collection}` });
       }
       const { did, session } = getAuthContext(request);
-      await writeToUserPds(session, did, [buildApplyWritesOp('delete', collection, rkey)]);
+      try {
+        await writeToUserPds(session, did, [buildApplyWritesOp('delete', collection, rkey)]);
+      } catch (err) {
+        if (isPdsRecordNotFound(err)) {
+          return reply.status(200).send({ ok: true });
+        }
+        return handlePdsError(err, reply);
+      }
       return reply.status(200).send({ ok: true });
     },
   );
@@ -391,7 +430,9 @@ export function registerProfileWriteRoutes(
           rkey: 'self',
         });
         const r = profileRes.data.value as Record<string, unknown>;
-        const loc = r.location as { country?: string; region?: string; city?: string } | undefined;
+        const loc = r.location as
+          | { country?: string; region?: string; city?: string; countryCode?: string }
+          | undefined;
         await db
           .insert(profilesTable)
           .values({
@@ -405,6 +446,7 @@ export function registerProfileWriteRoutes(
             locationCountry: sanitizeOptional(loc?.country) ?? null,
             locationRegion: sanitizeOptional(loc?.region) ?? null,
             locationCity: sanitizeOptional(loc?.city) ?? null,
+            countryCode: sanitizeOptional(loc?.countryCode) ?? null,
             createdAt: now,
             indexedAt: now,
             updatedAt: now,
@@ -418,6 +460,7 @@ export function registerProfileWriteRoutes(
               locationCountry: sanitizeOptional(loc?.country) ?? null,
               locationRegion: sanitizeOptional(loc?.region) ?? null,
               locationCity: sanitizeOptional(loc?.city) ?? null,
+              countryCode: sanitizeOptional(loc?.countryCode) ?? null,
               updatedAt: now,
             },
           });
@@ -462,7 +505,7 @@ export function registerProfileWriteRoutes(
           const rkey = rec.uri.split('/').pop() ?? '';
           const r = rec.value as Record<string, unknown>;
           const loc = r.location as
-            | { country?: string; region?: string; city?: string }
+            | { country?: string; region?: string; city?: string; countryCode?: string }
             | undefined;
           await db
             .insert(positionsTable)
@@ -475,6 +518,7 @@ export function registerProfileWriteRoutes(
               locationCountry: sanitizeOptional(loc?.country) ?? null,
               locationRegion: sanitizeOptional(loc?.region) ?? null,
               locationCity: sanitizeOptional(loc?.city) ?? null,
+              countryCode: sanitizeOptional(loc?.countryCode) ?? null,
               startDate: (r.startDate as string) ?? '',
               endDate: (r.endDate as string) ?? null,
               current: (r.current as boolean) ?? false,
@@ -490,6 +534,7 @@ export function registerProfileWriteRoutes(
                 locationCountry: sanitizeOptional(loc?.country) ?? null,
                 locationRegion: sanitizeOptional(loc?.region) ?? null,
                 locationCity: sanitizeOptional(loc?.city) ?? null,
+                countryCode: sanitizeOptional(loc?.countryCode) ?? null,
                 startDate: (r.startDate as string) ?? '',
                 endDate: (r.endDate as string) ?? null,
                 current: (r.current as boolean) ?? false,
@@ -904,4 +949,73 @@ export function registerProfileWriteRoutes(
 
     return reply.status(200).send({ ok: true });
   });
+
+  // DELETE /api/profile/reset -- wipe all Sifa data from PDS and local DB (keep account)
+  app.delete(
+    '/api/profile/reset',
+    { preHandler: requireAuth, config: { rateLimit: { max: 3, timeWindow: '1 hour' } } },
+    async (request, reply) => {
+      const { did, session } = getAuthContext(request);
+
+      try {
+        await wipeSifaData(session, did, db);
+      } catch (err) {
+        app.log.error({ err, did }, 'Profile reset failed');
+        return reply
+          .status(500)
+          .send({ error: 'ResetFailed', message: 'Failed to reset profile data' });
+      }
+
+      app.log.info({ did }, 'Profile reset completed');
+      return reply.status(200).send({ ok: true });
+    },
+  );
+
+  // DELETE /api/profile/account -- wipe all Sifa data, then logout and destroy session
+  app.delete(
+    '/api/profile/account',
+    { preHandler: requireAuth, config: { rateLimit: { max: 3, timeWindow: '1 hour' } } },
+    async (request, reply) => {
+      const { did, session } = getAuthContext(request);
+      let handle: string | undefined;
+
+      try {
+        // Read handle before wiping so we can return it for redirect
+        const [profileRow] = await db
+          .select({ handle: profilesTable.handle })
+          .from(profilesTable)
+          .where(eq(profilesTable.did, did))
+          .limit(1);
+        handle = profileRow?.handle ?? undefined;
+
+        await wipeSifaData(session, did, db);
+      } catch (err) {
+        app.log.error({ err, did }, 'Account deletion failed');
+        return reply
+          .status(500)
+          .send({ error: 'DeleteFailed', message: 'Failed to delete account' });
+      }
+
+      // Logout: destroy session and revoke OAuth tokens
+      const sessionId = request.cookies?.session;
+      if (sessionId) {
+        await db.delete(sessionsTable).where(eq(sessionsTable.id, sessionId));
+      }
+      await db
+        .delete(oauthSessionsTable)
+        .where(eq(oauthSessionsTable.did, did))
+        .catch((err: unknown) => {
+          app.log.error({ err, did }, 'Failed to delete OAuth sessions during account deletion');
+        });
+      if (oauthClient) {
+        await oauthClient.revoke(did).catch((err: unknown) => {
+          app.log.warn({ err, did }, 'Failed to revoke OAuth token during account deletion');
+        });
+      }
+      reply.clearCookie('session', { path: '/' });
+
+      app.log.info({ did }, 'Account deletion completed');
+      return reply.status(200).send({ ok: true, handle });
+    },
+  );
 }

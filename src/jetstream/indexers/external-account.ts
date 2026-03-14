@@ -31,6 +31,7 @@ export function createExternalAccountIndexer(db: Database) {
         url: sanitize(record.url as string),
         label: sanitizeOptional(record.label as string | undefined) ?? null,
         feedUrl: sanitizeOptional(record.feedUrl as string | undefined) ?? null,
+        isPrimary: (record.isPrimary as boolean) ?? false,
         createdAt: new Date(record.createdAt as string),
         indexedAt: new Date(),
       })
@@ -41,6 +42,7 @@ export function createExternalAccountIndexer(db: Database) {
           url: sanitize(record.url as string),
           label: sanitizeOptional(record.label as string | undefined) ?? null,
           feedUrl: sanitizeOptional(record.feedUrl as string | undefined) ?? null,
+          isPrimary: (record.isPrimary as boolean) ?? false,
           indexedAt: new Date(),
         },
       });
