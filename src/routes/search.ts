@@ -16,18 +16,34 @@ export function registerSearchRoutes(app: FastifyInstance, db: Database) {
 
     // Raw SQL required: Drizzle ORM doesn't support full-text search with to_tsvector/plainto_tsquery
     const results = await db.execute(sql`
-      SELECT did, handle, headline, about,
+      SELECT p.did, p.handle, p.headline, p.about,
+        pos.title AS "currentRole",
+        pos.company_name AS "currentCompany",
         ts_rank(
-          to_tsvector('english', coalesce(handle, '') || ' ' || coalesce(headline, '') || ' ' || coalesce(about, '')),
+          to_tsvector('english', coalesce(p.handle, '') || ' ' || coalesce(p.headline, '') || ' ' || coalesce(p.about, '')),
           plainto_tsquery('english', ${q})
         ) as rank
-      FROM profiles
-      WHERE to_tsvector('english', coalesce(handle, '') || ' ' || coalesce(headline, '') || ' ' || coalesce(about, ''))
+      FROM profiles p
+      LEFT JOIN positions pos ON p.did = pos.did AND pos.current = true
+      WHERE to_tsvector('english', coalesce(p.handle, '') || ' ' || coalesce(p.headline, '') || ' ' || coalesce(p.about, ''))
         @@ plainto_tsquery('english', ${q})
       ORDER BY rank DESC
       LIMIT ${limitNum} OFFSET ${offsetNum}
     `);
 
-    return { profiles: results.rows };
+    return {
+      profiles: results.rows.map((row) => {
+        const r = row as Record<string, unknown>;
+        const profile: Record<string, unknown> = {
+          did: r.did,
+          handle: r.handle,
+          headline: r.headline,
+          about: r.about,
+        };
+        if (r.currentRole != null) profile.currentRole = r.currentRole;
+        if (r.currentCompany != null) profile.currentCompany = r.currentCompany;
+        return profile;
+      }),
+    };
   });
 }
