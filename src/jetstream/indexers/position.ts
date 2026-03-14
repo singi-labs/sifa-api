@@ -1,9 +1,20 @@
 import type { Database } from '../../db/index.js';
-import { positions } from '../../db/schema/index.js';
+import { positions, skillPositionLinks } from '../../db/schema/index.js';
 import { and, eq } from 'drizzle-orm';
 import type { JetstreamEvent } from '../types.js';
 import { logger } from '../../logger.js';
 import { sanitize, sanitizeOptional } from '../../lib/sanitize.js';
+
+interface StrongRef {
+  uri: string;
+  cid: string;
+}
+
+/** Extract rkey from an AT Protocol URI: at://did/collection/rkey */
+function parseRkeyFromUri(uri: string): string | null {
+  const parts = uri.split('/');
+  return parts.length >= 5 ? (parts[4] ?? null) : null;
+}
 
 interface RecordLocation {
   country?: string;
@@ -20,6 +31,9 @@ export function createPositionIndexer(db: Database) {
     const { operation, rkey, record } = commit;
 
     if (operation === 'delete') {
+      await db
+        .delete(skillPositionLinks)
+        .where(and(eq(skillPositionLinks.did, did), eq(skillPositionLinks.positionRkey, rkey)));
       await db.delete(positions).where(and(eq(positions.did, did), eq(positions.rkey, rkey)));
       logger.info({ did, rkey }, 'Deleted position');
       return;
@@ -70,6 +84,29 @@ export function createPositionIndexer(db: Database) {
         },
       });
 
-    logger.info({ did, rkey, operation }, 'Indexed position');
+    // Sync skill-position links: delete-and-replace strategy
+    await db
+      .delete(skillPositionLinks)
+      .where(and(eq(skillPositionLinks.did, did), eq(skillPositionLinks.positionRkey, rkey)));
+
+    const skillRefs = record.skills as StrongRef[] | undefined;
+    if (skillRefs && Array.isArray(skillRefs) && skillRefs.length > 0) {
+      const linkValues = skillRefs
+        .map((ref) => {
+          const skillRkey = parseRkeyFromUri(ref.uri);
+          if (!skillRkey) {
+            logger.warn({ did, rkey, uri: ref.uri }, 'Could not parse skill rkey from strongRef URI');
+            return null;
+          }
+          return { did, positionRkey: rkey, skillRkey };
+        })
+        .filter((v): v is NonNullable<typeof v> => v !== null);
+
+      if (linkValues.length > 0) {
+        await db.insert(skillPositionLinks).values(linkValues).onConflictDoNothing();
+      }
+    }
+
+    logger.info({ did, rkey, operation, skillLinks: skillRefs?.length ?? 0 }, 'Indexed position');
   };
 }
