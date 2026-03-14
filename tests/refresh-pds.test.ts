@@ -43,10 +43,7 @@ describe('POST /api/profile/refresh-pds', () => {
 
     const agent = new Agent('https://public.api.bsky.app');
     await expect(
-      agent.getProfile(
-        { actor: 'did:plc:abc123' },
-        { signal: AbortSignal.timeout(5000) },
-      ),
+      agent.getProfile({ actor: 'did:plc:abc123' }, { signal: AbortSignal.timeout(5000) }),
     ).rejects.toThrow('AbortError');
   });
 });

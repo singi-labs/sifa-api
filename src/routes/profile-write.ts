@@ -904,43 +904,47 @@ export function registerProfileWriteRoutes(
   });
 
   // POST /api/profile/refresh-pds -- re-fetch displayName + avatar from Bluesky
-  app.post('/api/profile/refresh-pds', {
-    preHandler: requireAuth,
-    config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
-  }, async (request, reply) => {
-    const { did } = getAuthContext(request);
-    const publicAgent = new Agent('https://public.api.bsky.app');
+  app.post(
+    '/api/profile/refresh-pds',
+    {
+      preHandler: requireAuth,
+      config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { did } = getAuthContext(request);
+      const publicAgent = new Agent('https://public.api.bsky.app');
 
-    try {
-      const bskyProfile = await publicAgent.getProfile(
-        { actor: did },
-        { signal: AbortSignal.timeout(5000) },
-      );
+      try {
+        const bskyProfile = await publicAgent.getProfile(
+          { actor: did },
+          { signal: AbortSignal.timeout(5000) },
+        );
 
-      const now = new Date();
-      await db
-        .update(profilesTable)
-        .set({
-          handle: bskyProfile.data.handle,
+        const now = new Date();
+        await db
+          .update(profilesTable)
+          .set({
+            handle: bskyProfile.data.handle,
+            displayName: bskyProfile.data.displayName ?? null,
+            avatarUrl: bskyProfile.data.avatar ?? null,
+            updatedAt: now,
+          })
+          .where(eq(profilesTable.did, did));
+
+        return reply.send({
+          ok: true,
           displayName: bskyProfile.data.displayName ?? null,
-          avatarUrl: bskyProfile.data.avatar ?? null,
-          updatedAt: now,
-        })
-        .where(eq(profilesTable.did, did));
-
-      return reply.send({
-        ok: true,
-        displayName: bskyProfile.data.displayName ?? null,
-        avatar: bskyProfile.data.avatar ?? null,
-        handle: bskyProfile.data.handle,
-      });
-    } catch (err) {
-      request.log.error({ err, did }, 'PDS refresh failed');
-      return reply
-        .status(502)
-        .send({ error: 'UpstreamError', message: 'Could not fetch profile from Bluesky' });
-    }
-  });
+          avatar: bskyProfile.data.avatar ?? null,
+          handle: bskyProfile.data.handle,
+        });
+      } catch (err) {
+        request.log.error({ err, did }, 'PDS refresh failed');
+        return reply
+          .status(502)
+          .send({ error: 'UpstreamError', message: 'Could not fetch profile from Bluesky' });
+      }
+    },
+  );
 
   // PUT /api/profile/override -- set or clear AppView-local overrides
   app.put('/api/profile/override', { preHandler: requireAuth }, async (request, reply) => {
