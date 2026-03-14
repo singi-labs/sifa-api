@@ -92,6 +92,13 @@
       "when": 1773799200000,
       "tag": "0012_canonical_skills",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1773885600000,
+      "tag": "0013_canonical_skills_timestamps",
+      "breakpoints": true
     }
   ]
 }
