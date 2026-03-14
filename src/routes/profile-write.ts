@@ -904,7 +904,10 @@ export function registerProfileWriteRoutes(
   });
 
   // POST /api/profile/refresh-pds -- re-fetch displayName + avatar from Bluesky
-  app.post('/api/profile/refresh-pds', { preHandler: requireAuth }, async (request, reply) => {
+  app.post('/api/profile/refresh-pds', {
+    preHandler: requireAuth,
+    config: { rateLimit: { max: 5, timeWindow: '1 minute' } },
+  }, async (request, reply) => {
     const { did } = getAuthContext(request);
     const publicAgent = new Agent('https://public.api.bsky.app');
 
