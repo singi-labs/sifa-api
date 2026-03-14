@@ -1,10 +1,12 @@
-import { pgTable, serial, text, integer, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, uuid, text, integer, timestamp } from 'drizzle-orm/pg-core';
+import { canonicalSkills } from './canonical-skills.js';
 
 export const unresolvedSkills = pgTable('unresolved_skills', {
-  id: serial('id').primaryKey(),
-  rawName: text('raw_name').notNull().unique(),
+  id: uuid('id').primaryKey().defaultRandom(),
+  rawName: text('raw_name').notNull(),
+  normalizedName: text('normalized_name').notNull().unique(),
   occurrences: integer('occurrences').notNull().default(1),
-  resolvedTo: text('resolved_to'),
-  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  firstSeenAt: timestamp('first_seen_at', { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  resolvedToId: uuid('resolved_to_id').references(() => canonicalSkills.id),
 });
