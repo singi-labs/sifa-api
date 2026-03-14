@@ -16,3 +16,6 @@ export { honors } from './honors.js';
 export { languages } from './languages.js';
 export { suggestionDismissals } from './suggestion-dismissals.js';
 export { invites } from './invites.js';
+export { canonicalSkills } from './canonical-skills.js';
+export { unresolvedSkills } from './unresolved-skills.js';
+export { skillPositionLinks } from './skill-position-links.js';
