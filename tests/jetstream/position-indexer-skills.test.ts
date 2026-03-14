@@ -9,25 +9,34 @@ describe('Position indexer skill-position links', () => {
   const testDid = 'did:plc:pos-skill-link-test';
 
   beforeAll(async () => {
-    await db.insert(profiles).values({
-      did: testDid,
-      handle: 'pos-skill-test.bsky.social',
-      createdAt: new Date(),
-    }).onConflictDoNothing();
+    await db
+      .insert(profiles)
+      .values({
+        did: testDid,
+        handle: 'pos-skill-test.bsky.social',
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
 
-    await db.insert(skills).values({
-      did: testDid,
-      rkey: '3skill1',
-      skillName: 'TypeScript',
-      createdAt: new Date(),
-    }).onConflictDoNothing();
+    await db
+      .insert(skills)
+      .values({
+        did: testDid,
+        rkey: '3skill1',
+        skillName: 'TypeScript',
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
 
-    await db.insert(skills).values({
-      did: testDid,
-      rkey: '3skill2',
-      skillName: 'PostgreSQL',
-      createdAt: new Date(),
-    }).onConflictDoNothing();
+    await db
+      .insert(skills)
+      .values({
+        did: testDid,
+        rkey: '3skill2',
+        skillName: 'PostgreSQL',
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
   });
 
   afterAll(async () => {
@@ -66,7 +75,9 @@ describe('Position indexer skill-position links', () => {
     const links = await db
       .select()
       .from(skillPositionLinks)
-      .where(and(eq(skillPositionLinks.did, testDid), eq(skillPositionLinks.positionRkey, '3pos1')));
+      .where(
+        and(eq(skillPositionLinks.did, testDid), eq(skillPositionLinks.positionRkey, '3pos1')),
+      );
     expect(links).toHaveLength(2);
     expect(links.map((l) => l.skillRkey).sort()).toEqual(['3skill1', '3skill2']);
   });
@@ -88,9 +99,7 @@ describe('Position indexer skill-position links', () => {
           startDate: '2024-01',
           current: true,
           createdAt: '2026-01-01T00:00:00Z',
-          skills: [
-            { uri: `at://${testDid}/id.sifa.profile.skill/3skill1`, cid: 'bafyabc1' },
-          ],
+          skills: [{ uri: `at://${testDid}/id.sifa.profile.skill/3skill1`, cid: 'bafyabc1' }],
         },
       },
     });
@@ -98,7 +107,9 @@ describe('Position indexer skill-position links', () => {
     const links = await db
       .select()
       .from(skillPositionLinks)
-      .where(and(eq(skillPositionLinks.did, testDid), eq(skillPositionLinks.positionRkey, '3pos1')));
+      .where(
+        and(eq(skillPositionLinks.did, testDid), eq(skillPositionLinks.positionRkey, '3pos1')),
+      );
     expect(links).toHaveLength(1);
     expect(links[0].skillRkey).toBe('3skill1');
   });
@@ -120,7 +131,9 @@ describe('Position indexer skill-position links', () => {
     const links = await db
       .select()
       .from(skillPositionLinks)
-      .where(and(eq(skillPositionLinks.did, testDid), eq(skillPositionLinks.positionRkey, '3pos1')));
+      .where(
+        and(eq(skillPositionLinks.did, testDid), eq(skillPositionLinks.positionRkey, '3pos1')),
+      );
     expect(links).toHaveLength(0);
   });
 
@@ -148,7 +161,9 @@ describe('Position indexer skill-position links', () => {
     const links = await db
       .select()
       .from(skillPositionLinks)
-      .where(and(eq(skillPositionLinks.did, testDid), eq(skillPositionLinks.positionRkey, '3pos2')));
+      .where(
+        and(eq(skillPositionLinks.did, testDid), eq(skillPositionLinks.positionRkey, '3pos2')),
+      );
     expect(links).toHaveLength(0);
   });
 });

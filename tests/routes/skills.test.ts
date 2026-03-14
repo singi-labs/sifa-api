@@ -36,11 +36,41 @@ describe('Skills Search API', () => {
     await db
       .insert(canonicalSkills)
       .values([
-        { canonicalName: 'JavaScript', slug: 'javascript', category: 'technical', aliases: ['js', 'javascript'], userCount: 150 },
-        { canonicalName: 'TypeScript', slug: 'typescript', category: 'technical', aliases: ['ts', 'typescript'], userCount: 120 },
-        { canonicalName: 'Java', slug: 'java', category: 'technical', aliases: ['java'], userCount: 80 },
-        { canonicalName: 'Python', slug: 'python', category: 'technical', aliases: ['python', 'py'], userCount: 200 },
-        { canonicalName: 'Project Management', slug: 'project-management', category: 'business', aliases: ['project management', 'pm'], userCount: 50 },
+        {
+          canonicalName: 'JavaScript',
+          slug: 'javascript',
+          category: 'technical',
+          aliases: ['js', 'javascript'],
+          userCount: 150,
+        },
+        {
+          canonicalName: 'TypeScript',
+          slug: 'typescript',
+          category: 'technical',
+          aliases: ['ts', 'typescript'],
+          userCount: 120,
+        },
+        {
+          canonicalName: 'Java',
+          slug: 'java',
+          category: 'technical',
+          aliases: ['java'],
+          userCount: 80,
+        },
+        {
+          canonicalName: 'Python',
+          slug: 'python',
+          category: 'technical',
+          aliases: ['python', 'py'],
+          userCount: 200,
+        },
+        {
+          canonicalName: 'Project Management',
+          slug: 'project-management',
+          category: 'business',
+          aliases: ['project management', 'pm'],
+          userCount: 50,
+        },
       ])
       .onConflictDoNothing();
 
@@ -57,7 +87,9 @@ describe('Skills Search API', () => {
   });
 
   afterAll(async () => {
-    await db.execute(sql`DELETE FROM canonical_skills WHERE slug IN ('javascript', 'typescript', 'java', 'python', 'project-management')`);
+    await db.execute(
+      sql`DELETE FROM canonical_skills WHERE slug IN ('javascript', 'typescript', 'java', 'python', 'project-management')`,
+    );
     await db.$client.end();
     await app.close();
     rmSync(tmpKeysDir, { recursive: true });
@@ -103,7 +135,9 @@ describe('Skills Search API', () => {
   it('GET /api/skills/search matches aliases', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/skills/search?q=pm' });
     const body = res.json();
-    const pm = body.skills.find((s: { canonicalName: string }) => s.canonicalName === 'Project Management');
+    const pm = body.skills.find(
+      (s: { canonicalName: string }) => s.canonicalName === 'Project Management',
+    );
     expect(pm).toBeDefined();
   });
 });

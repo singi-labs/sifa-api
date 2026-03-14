@@ -33,9 +33,7 @@ describe('Skill indexer with normalization', () => {
   afterAll(async () => {
     await db.delete(skills).where(eq(skills.did, testDid));
     await db.execute(sql`DELETE FROM canonical_skills WHERE slug = 'typescript'`);
-    await db.execute(
-      sql`DELETE FROM unresolved_skills WHERE normalized_name = 'ts'`,
-    );
+    await db.execute(sql`DELETE FROM unresolved_skills WHERE normalized_name = 'ts'`);
     await db.execute(sql`DELETE FROM profiles WHERE did = ${testDid}`);
     await db.$client.end();
   });

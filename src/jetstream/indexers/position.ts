@@ -95,7 +95,10 @@ export function createPositionIndexer(db: Database) {
         .map((ref) => {
           const skillRkey = parseRkeyFromUri(ref.uri);
           if (!skillRkey) {
-            logger.warn({ did, rkey, uri: ref.uri }, 'Could not parse skill rkey from strongRef URI');
+            logger.warn(
+              { did, rkey, uri: ref.uri },
+              'Could not parse skill rkey from strongRef URI',
+            );
             return null;
           }
           return { did, positionRkey: rkey, skillRkey };
