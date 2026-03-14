@@ -958,7 +958,7 @@ export function registerProfileWriteRoutes(
         await wipeSifaData(session, did, db);
       } catch (err) {
         app.log.error({ err, did }, 'Profile reset failed');
-        return reply.status(500).send({ error: 'ResetFailed' });
+        return reply.status(500).send({ error: 'ResetFailed', message: 'Failed to reset profile data' });
       }
 
       app.log.info({ did }, 'Profile reset completed');
@@ -972,20 +972,21 @@ export function registerProfileWriteRoutes(
     { preHandler: requireAuth, config: { rateLimit: { max: 3, timeWindow: '1 hour' } } },
     async (request, reply) => {
       const { did, session } = getAuthContext(request);
-
-      // Read handle before wiping so we can return it for redirect
-      const [profileRow] = await db
-        .select({ handle: profilesTable.handle })
-        .from(profilesTable)
-        .where(eq(profilesTable.did, did))
-        .limit(1);
-      const handle = profileRow?.handle ?? undefined;
+      let handle: string | undefined;
 
       try {
+        // Read handle before wiping so we can return it for redirect
+        const [profileRow] = await db
+          .select({ handle: profilesTable.handle })
+          .from(profilesTable)
+          .where(eq(profilesTable.did, did))
+          .limit(1);
+        handle = profileRow?.handle ?? undefined;
+
         await wipeSifaData(session, did, db);
       } catch (err) {
         app.log.error({ err, did }, 'Account deletion failed');
-        return reply.status(500).send({ error: 'DeleteFailed' });
+        return reply.status(500).send({ error: 'DeleteFailed', message: 'Failed to delete account' });
       }
 
       // Logout: destroy session and revoke OAuth tokens
@@ -1000,7 +1001,9 @@ export function registerProfileWriteRoutes(
           app.log.error({ err, did }, 'Failed to delete OAuth sessions during account deletion');
         });
       if (oauthClient) {
-        await oauthClient.revoke(did).catch(() => {});
+        await oauthClient.revoke(did).catch((err: unknown) => {
+          app.log.warn({ err, did }, 'Failed to revoke OAuth token during account deletion');
+        });
       }
       reply.clearCookie('session', { path: '/' });
 
