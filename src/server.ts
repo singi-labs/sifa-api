@@ -18,6 +18,7 @@ import { registerProfileWriteRoutes } from './routes/profile-write.js';
 import { registerImportRoutes } from './routes/import.js';
 import { registerFollowRoutes } from './routes/follow.js';
 import { registerSearchRoutes } from './routes/search.js';
+import { registerSkillsRoutes } from './routes/skills.js';
 import { registerExternalAccountRoutes } from './routes/external-accounts.js';
 import { registerSuggestionRoutes } from './routes/suggestions.js';
 import { registerWellKnownRoutes } from './routes/well-known.js';
@@ -97,6 +98,7 @@ export async function buildServer(config: Env) {
   registerImportRoutes(app, db, oauthClient);
   registerFollowRoutes(app, db, oauthClient);
   registerSearchRoutes(app, db);
+  registerSkillsRoutes(app, db);
   registerExternalAccountRoutes(app, db, oauthClient, valkey);
   registerSuggestionRoutes(app, db, oauthClient, config.PUBLIC_URL);
 
