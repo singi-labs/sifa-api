@@ -9,36 +9,39 @@ const searchQuerySchema = z.object({
 });
 
 export function registerSkillsRoutes(app: FastifyInstance, db: Database) {
-  app.get('/api/skills/search', {
-    config: {
-      rateLimit: {
-        max: 30,
-        timeWindow: '1 minute',
+  app.get(
+    '/api/skills/search',
+    {
+      config: {
+        rateLimit: {
+          max: 30,
+          timeWindow: '1 minute',
+        },
       },
     },
-  }, async (request, reply) => {
-    const parsed = searchQuerySchema.safeParse(request.query);
-    if (!parsed.success) {
-      return reply.status(400).send({
-        error: 'InvalidRequest',
-        message: parsed.error.issues[0]?.message ?? 'Invalid query parameters',
-      });
-    }
+    async (request, reply) => {
+      const parsed = searchQuerySchema.safeParse(request.query);
+      if (!parsed.success) {
+        return reply.status(400).send({
+          error: 'InvalidRequest',
+          message: parsed.error.issues[0]?.message ?? 'Invalid query parameters',
+        });
+      }
 
-    const { q, limit } = parsed.data;
-    const searchTerm = q.trim().toLowerCase();
+      const { q, limit } = parsed.data;
+      const searchTerm = q.trim().toLowerCase();
 
-    if (!searchTerm) {
-      return reply.status(400).send({
-        error: 'InvalidRequest',
-        message: 'Query parameter q is required',
-      });
-    }
+      if (!searchTerm) {
+        return reply.status(400).send({
+          error: 'InvalidRequest',
+          message: 'Query parameter q is required',
+        });
+      }
 
-    // Search canonical_name with pg_trgm similarity + exact slug match + alias array matching
-    // Order: exact slug match first, then by (similarity * log(user_count + 2)) for weighted ranking
-    // Wrapped in subquery so column aliases (sim, exact_match) can be used in ORDER BY
-    const results = await db.execute(sql`
+      // Search canonical_name with pg_trgm similarity + exact slug match + alias array matching
+      // Order: exact slug match first, then by (similarity * log(user_count + 2)) for weighted ranking
+      // Wrapped in subquery so column aliases (sim, exact_match) can be used in ORDER BY
+      const results = await db.execute(sql`
       SELECT canonical_name, slug, category FROM (
         SELECT canonical_name, slug, category,
           CASE WHEN slug = ${searchTerm} THEN 1 ELSE 0 END AS exact_match,
@@ -61,15 +64,16 @@ export function registerSkillsRoutes(app: FastifyInstance, db: Database) {
       LIMIT ${limit}
     `);
 
-    return {
-      skills: results.rows.map((row) => {
-        const r = row as Record<string, unknown>;
-        return {
-          canonicalName: r.canonical_name as string,
-          slug: r.slug as string,
-          category: r.category as string,
-        };
-      }),
-    };
-  });
+      return {
+        skills: results.rows.map((row) => {
+          const r = row as Record<string, unknown>;
+          return {
+            canonicalName: r.canonical_name as string,
+            slug: r.slug as string,
+            category: r.category as string,
+          };
+        }),
+      };
+    },
+  );
 }
