@@ -13,6 +13,11 @@ const ATPROTO_STATS_TTL = 86400; // 24 hours
 const AVATARS_KEY = 'stats:avatars';
 const AVATARS_TTL = 900; // 15 minutes
 
+// Estimated non-Bluesky ATProto DIDs from PLC directory sampling (2026-03-15).
+// bsky-users.theo.io tracks Bluesky accounts only (~43M). PLC directory holds
+// all ATProto DIDs including Blacksky, Northsky, Eurosky etc. (~60M).
+const PLC_OFFSET = 17_000_000;
+
 interface AtprotoStats {
   userCount: number;
   growthPerSecond: number;
@@ -108,7 +113,7 @@ export function registerStatsRoutes(
       avatars,
       atproto: atproto
         ? {
-            userCount: atproto.userCount,
+            userCount: atproto.userCount + PLC_OFFSET,
             growthPerSecond: atproto.growthPerSecond,
             timestamp: atproto.timestamp,
           }
