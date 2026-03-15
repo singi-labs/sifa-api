@@ -941,7 +941,7 @@ export function registerProfileWriteRoutes(
         request.log.error({ err, did }, 'PDS refresh failed');
         return reply
           .status(502)
-          .send({ error: 'UpstreamError', message: 'Could not fetch profile from Bluesky' });
+          .send({ error: 'UpstreamError', message: 'Could not fetch profile from AT Protocol' });
       }
     },
   );

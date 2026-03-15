@@ -281,10 +281,13 @@ export function registerOAuthRoutes(
             handle: profiles.handle,
             displayName: profiles.displayName,
             avatarUrl: profiles.avatarUrl,
+            updatedAt: profiles.updatedAt,
           })
           .from(profiles)
           .where(eq(profiles.did, row.did))
           .limit(1);
+
+        const STALE_MS = 12 * 60 * 60 * 1000; // 12 hours
 
         if (!profile) {
           // Profile not yet synced locally — resolve from Bluesky and trigger sync
@@ -325,6 +328,29 @@ export function registerOAuthRoutes(
             displayName: bskyProfile.data.displayName,
             avatar: bskyProfile.data.avatar,
           });
+        }
+
+        // Auto-refresh stale profiles (>12h since last update)
+        const isStale = Date.now() - profile.updatedAt.getTime() > STALE_MS;
+        if (isStale) {
+          const publicAgent = new Agent('https://public.api.bsky.app');
+          void publicAgent
+            .getProfile({ actor: row.did }, { signal: AbortSignal.timeout(3000) })
+            .then((bskyProfile) => {
+              const now = new Date();
+              return db
+                .update(profiles)
+                .set({
+                  handle: bskyProfile.data.handle,
+                  displayName: bskyProfile.data.displayName ?? null,
+                  avatarUrl: bskyProfile.data.avatar ?? null,
+                  updatedAt: now,
+                })
+                .where(eq(profiles.did, row.did));
+            })
+            .catch((err: unknown) => {
+              app.log.warn({ err, did: row.did }, 'Stale profile auto-refresh failed');
+            });
         }
 
         return reply.send({
