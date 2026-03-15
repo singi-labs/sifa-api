@@ -71,7 +71,10 @@ describe('Location search routes', () => {
       ),
     );
 
-    const res = await app.inject({ method: 'GET', url: '/api/location/search?q=Amsterdam&mode=city' });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/location/search?q=Amsterdam&mode=city',
+    });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.results).toHaveLength(1);
@@ -160,7 +163,10 @@ describe('Location search routes', () => {
       ),
     );
 
-    const res = await app.inject({ method: 'GET', url: '/api/location/search?q=Netherlands&mode=country' });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/location/search?q=Netherlands&mode=country',
+    });
     expect(res.statusCode).toBe(200);
     const body = res.json();
     expect(body.results).toHaveLength(1);
@@ -175,7 +181,10 @@ describe('Location search routes', () => {
     const mockFetch = vi.mocked(fetch);
     mockFetch.mockRejectedValueOnce(new Error('Network error'));
 
-    const res = await app.inject({ method: 'GET', url: '/api/location/search?q=Amsterdam&mode=city' });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/location/search?q=Amsterdam&mode=city',
+    });
     expect(res.statusCode).toBe(502);
     expect(res.json()).toEqual({ results: [], error: 'geonames_unavailable' });
   });
@@ -184,7 +193,10 @@ describe('Location search routes', () => {
     const mockFetch = vi.mocked(fetch);
     mockFetch.mockResolvedValueOnce(new Response('Service unavailable', { status: 503 }));
 
-    const res = await app.inject({ method: 'GET', url: '/api/location/search?q=Amsterdam&mode=city' });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/location/search?q=Amsterdam&mode=city',
+    });
     expect(res.statusCode).toBe(502);
     expect(res.json()).toEqual({ results: [], error: 'geonames_unavailable' });
   });
@@ -207,7 +219,10 @@ describe('Location search routes', () => {
       ),
     );
 
-    const res = await app.inject({ method: 'GET', url: '/api/location/search?q=Singapore&mode=city' });
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/location/search?q=Singapore&mode=city',
+    });
     const body = res.json();
     expect(body.results[0].region).toBeUndefined();
     expect(body.results[0].label).toBe('Singapore, Singapore');

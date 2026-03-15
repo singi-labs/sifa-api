@@ -67,7 +67,9 @@ export function registerLocationRoutes(app: FastifyInstance, geonamesUsername: s
           region: p.adminName1 || undefined,
           country: p.countryCode,
           countryCode: p.countryCode,
-          label: [p.postalCode, p.placeName, p.adminName1, p.countryCode].filter(Boolean).join(', '),
+          label: [p.postalCode, p.placeName, p.adminName1, p.countryCode]
+            .filter(Boolean)
+            .join(', '),
         }));
         return reply.send({ results });
       }
