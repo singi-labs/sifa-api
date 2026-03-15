@@ -10,6 +10,7 @@ const envSchema = z.object({
   JETSTREAM_URL: z.string().url(),
   OAUTH_JWKS_PATH: z.string(),
   GLITCHTIP_DSN: z.string().url().optional(),
+  GEONAMES_USERNAME: z.string().default('gxjansen'),
 });
 
 export type Env = z.infer<typeof envSchema>;
