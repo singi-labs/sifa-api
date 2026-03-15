@@ -12,6 +12,7 @@
     "test:watch": "vitest",
     "lint": "eslint src/ tests/",
     "typecheck": "tsc --noEmit",
+    "seed:skills": "tsx scripts/seed-skills.ts",
     "services:up": "docker compose -f docker-compose.dev.yml up -d",
     "services:down": "docker compose -f docker-compose.dev.yml down",
     "format": "prettier --write .",
