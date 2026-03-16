@@ -1,6 +1,8 @@
 import type { FastifyInstance } from 'fastify';
 import type { Database } from '../db/index.js';
 import { sql } from 'drizzle-orm';
+import { resolveHandleFromNetwork } from '../services/handle-resolver.js';
+import { logger } from '../logger.js';
 
 export function registerSearchRoutes(app: FastifyInstance, db: Database) {
   app.get('/api/search/profiles', async (request, reply) => {
@@ -32,21 +34,43 @@ export function registerSearchRoutes(app: FastifyInstance, db: Database) {
       LIMIT ${limitNum} OFFSET ${offsetNum}
     `);
 
-    return {
-      profiles: results.rows.map((row) => {
-        const r = row as Record<string, unknown>;
-        const profile: Record<string, unknown> = {
-          did: r.did,
-          handle: r.handle,
-          headline: r.headline,
-          about: r.about,
-        };
-        if (r.displayName != null) profile.displayName = r.displayName;
-        if (r.avatarUrl != null) profile.avatar = r.avatarUrl;
-        if (r.currentRole != null) profile.currentRole = r.currentRole;
-        if (r.currentCompany != null) profile.currentCompany = r.currentCompany;
-        return profile;
-      }),
-    };
+    const dbProfiles = results.rows.map((row) => {
+      const r = row as Record<string, unknown>;
+      const profile: Record<string, unknown> = {
+        did: r.did,
+        handle: r.handle,
+        headline: r.headline,
+        about: r.about,
+        claimed: true,
+      };
+      if (r.displayName != null) profile.displayName = r.displayName;
+      if (r.avatarUrl != null) profile.avatar = r.avatarUrl;
+      if (r.currentRole != null) profile.currentRole = r.currentRole;
+      if (r.currentCompany != null) profile.currentCompany = r.currentCompany;
+      return profile;
+    });
+
+    // Try AT Protocol handle resolution as fallback
+    try {
+      const resolved = await resolveHandleFromNetwork(q.trim());
+      if (resolved) {
+        const alreadyInResults = dbProfiles.some((p) => p.did === resolved.did);
+        if (!alreadyInResults) {
+          const networkProfile: Record<string, unknown> = {
+            did: resolved.did,
+            handle: resolved.handle,
+            about: resolved.about,
+            claimed: false,
+          };
+          if (resolved.displayName != null) networkProfile.displayName = resolved.displayName;
+          if (resolved.avatar != null) networkProfile.avatar = resolved.avatar;
+          dbProfiles.push(networkProfile);
+        }
+      }
+    } catch (err) {
+      logger.debug({ err, query: q }, 'Handle resolution fallback failed');
+    }
+
+    return { profiles: dbProfiles };
   });
 }
