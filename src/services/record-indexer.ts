@@ -1,5 +1,6 @@
 import type { Database } from '../db/index.js';
 import {
+  profiles,
   skills,
   positions,
   education,
@@ -18,6 +19,43 @@ import { and, eq, sql } from 'drizzle-orm';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
 import { resolveSkill } from './skill-normalization.js';
 import { logger } from '../logger.js';
+
+// --- Profile Self ---
+
+interface ProfileSelfLocation {
+  country?: string;
+  region?: string;
+  city?: string;
+  countryCode?: string;
+}
+
+export async function indexProfileSelf(
+  db: Database,
+  did: string,
+  data: Record<string, unknown>,
+): Promise<void> {
+  const location = data.location as ProfileSelfLocation | undefined;
+
+  const fields = {
+    headline: sanitizeOptional(data.headline as string | undefined) ?? null,
+    about: sanitizeOptional(data.about as string | undefined) ?? null,
+    industry: sanitizeOptional(data.industry as string | undefined) ?? null,
+    locationCountry: sanitizeOptional(location?.country) ?? null,
+    locationRegion: sanitizeOptional(location?.region) ?? null,
+    locationCity: sanitizeOptional(location?.city) ?? null,
+    countryCode: sanitizeOptional(location?.countryCode) ?? null,
+    openTo: (data.openTo as string[]) ?? null,
+    preferredWorkplace: (data.preferredWorkplace as string[]) ?? null,
+    langs: (data.langs as string[]) ?? null,
+  };
+
+  await db
+    .update(profiles)
+    .set({ ...fields, updatedAt: new Date() })
+    .where(eq(profiles.did, did));
+
+  logger.info({ did }, 'Indexed profile self (write-through)');
+}
 
 // --- Skill ---
 
