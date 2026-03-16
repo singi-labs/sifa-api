@@ -35,6 +35,16 @@ import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
 import { wipeSifaData } from '../services/profile-wipe.js';
 import {
+  indexSkill,
+  deleteSkill,
+  indexPosition,
+  deletePosition,
+  indexEducation,
+  deleteEducation,
+  indexRecord,
+  deleteRecord,
+} from '../services/record-indexer.js';
+import {
   sessions as sessionsTable,
   oauthSessions as oauthSessionsTable,
 } from '../db/schema/index.js';
@@ -94,6 +104,9 @@ export function registerProfileWriteRoutes(
       buildApplyWritesOp('create', 'id.sifa.profile.position', rkey, record),
     ]);
 
+    // Write-through: index in local DB immediately
+    await indexPosition(db, did, rkey, record);
+
     return reply.status(201).send({ rkey });
   });
 
@@ -118,6 +131,9 @@ export function registerProfileWriteRoutes(
         buildApplyWritesOp('update', 'id.sifa.profile.position', rkey, record),
       ]);
 
+      // Write-through: update local DB immediately
+      await indexPosition(db, did, rkey, record);
+
       return reply.status(200).send({ ok: true });
     },
   );
@@ -136,10 +152,14 @@ export function registerProfileWriteRoutes(
         ]);
       } catch (err) {
         if (isPdsRecordNotFound(err)) {
+          await deletePosition(db, did, rkey);
           return reply.status(200).send({ ok: true });
         }
         return handlePdsError(err, reply);
       }
+
+      // Write-through: delete from local DB immediately
+      await deletePosition(db, did, rkey);
 
       return reply.status(200).send({ ok: true });
     },
@@ -162,6 +182,8 @@ export function registerProfileWriteRoutes(
     await writeToUserPds(session, did, [
       buildApplyWritesOp('create', 'id.sifa.profile.education', rkey, record),
     ]);
+
+    await indexEducation(db, did, rkey, record);
 
     return reply.status(201).send({ rkey });
   });
@@ -187,6 +209,8 @@ export function registerProfileWriteRoutes(
         buildApplyWritesOp('update', 'id.sifa.profile.education', rkey, record),
       ]);
 
+      await indexEducation(db, did, rkey, record);
+
       return reply.status(200).send({ ok: true });
     },
   );
@@ -205,10 +229,13 @@ export function registerProfileWriteRoutes(
         ]);
       } catch (err) {
         if (isPdsRecordNotFound(err)) {
+          await deleteEducation(db, did, rkey);
           return reply.status(200).send({ ok: true });
         }
         return handlePdsError(err, reply);
       }
+
+      await deleteEducation(db, did, rkey);
 
       return reply.status(200).send({ ok: true });
     },
@@ -231,6 +258,8 @@ export function registerProfileWriteRoutes(
     await writeToUserPds(session, did, [
       buildApplyWritesOp('create', 'id.sifa.profile.skill', rkey, record),
     ]);
+
+    await indexSkill(db, did, rkey, record);
 
     return reply.status(201).send({ rkey });
   });
@@ -256,6 +285,8 @@ export function registerProfileWriteRoutes(
         buildApplyWritesOp('update', 'id.sifa.profile.skill', rkey, record),
       ]);
 
+      await indexSkill(db, did, rkey, record);
+
       return reply.status(200).send({ ok: true });
     },
   );
@@ -274,10 +305,13 @@ export function registerProfileWriteRoutes(
         ]);
       } catch (err) {
         if (isPdsRecordNotFound(err)) {
+          await deleteSkill(db, did, rkey);
           return reply.status(200).send({ ok: true });
         }
         return handlePdsError(err, reply);
       }
+
+      await deleteSkill(db, did, rkey);
 
       return reply.status(200).send({ ok: true });
     },
@@ -304,6 +338,7 @@ export function registerProfileWriteRoutes(
       const data = parsed.data as Record<string, unknown>;
       const record: Record<string, unknown> = { createdAt: new Date().toISOString(), ...data };
       await writeToUserPds(session, did, [buildApplyWritesOp('create', collection, rkey, record)]);
+      await indexRecord(db, collection, did, rkey, record);
       return reply.status(201).send({ rkey });
     },
   );
@@ -327,6 +362,7 @@ export function registerProfileWriteRoutes(
       const data = parsed.data as Record<string, unknown>;
       const record: Record<string, unknown> = { createdAt: new Date().toISOString(), ...data };
       await writeToUserPds(session, did, [buildApplyWritesOp('update', collection, rkey, record)]);
+      await indexRecord(db, collection, did, rkey, record);
       return reply.status(200).send({ ok: true });
     },
   );
@@ -346,10 +382,12 @@ export function registerProfileWriteRoutes(
         await writeToUserPds(session, did, [buildApplyWritesOp('delete', collection, rkey)]);
       } catch (err) {
         if (isPdsRecordNotFound(err)) {
+          await deleteRecord(db, collection, did, rkey);
           return reply.status(200).send({ ok: true });
         }
         return handlePdsError(err, reply);
       }
+      await deleteRecord(db, collection, did, rkey);
       return reply.status(200).send({ ok: true });
     },
   );

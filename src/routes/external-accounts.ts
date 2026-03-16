@@ -15,6 +15,7 @@ import {
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { discoverFeedUrl, fetchFeedItems } from '../services/feed-discovery.js';
 import { checkAndStoreVerification, isVerifiablePlatform } from '../services/verification.js';
+import { indexRecord, deleteRecord } from '../services/record-indexer.js';
 
 const FEED_CACHE_TTL = 1800; // 30 minutes
 
@@ -56,6 +57,8 @@ export function registerExternalAccountRoutes(
       await writeToUserPds(session, did, [
         buildApplyWritesOp('create', 'id.sifa.profile.externalAccount', rkey, record),
       ]);
+
+      await indexRecord(db, 'id.sifa.profile.externalAccount', did, rkey, record);
 
       // Trigger verification in the background
       const [profile] = await db.select().from(profiles).where(eq(profiles.did, did)).limit(1);
@@ -111,6 +114,8 @@ export function registerExternalAccountRoutes(
         buildApplyWritesOp('update', 'id.sifa.profile.externalAccount', rkey, record),
       ]);
 
+      await indexRecord(db, 'id.sifa.profile.externalAccount', did, rkey, record);
+
       // Re-verify in the background
       const [profile] = await db.select().from(profiles).where(eq(profiles.did, did)).limit(1);
       if (profile) {
@@ -141,10 +146,13 @@ export function registerExternalAccountRoutes(
         ]);
       } catch (err) {
         if (isPdsRecordNotFound(err)) {
+          await deleteRecord(db, 'id.sifa.profile.externalAccount', did, rkey);
           return reply.status(200).send({ ok: true });
         }
         return handlePdsError(err, reply);
       }
+
+      await deleteRecord(db, 'id.sifa.profile.externalAccount', did, rkey);
 
       return reply.status(200).send({ ok: true });
     },

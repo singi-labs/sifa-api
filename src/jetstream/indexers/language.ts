@@ -1,9 +1,8 @@
 import type { Database } from '../../db/index.js';
-import { languages } from '../../db/schema/index.js';
-import { and, eq } from 'drizzle-orm';
 import type { JetstreamEvent } from '../types.js';
-import { logger } from '../../logger.js';
-import { sanitize } from '../../lib/sanitize.js';
+import { indexRecord, deleteRecord } from '../../services/record-indexer.js';
+
+const COLLECTION = 'id.sifa.profile.language';
 
 export function createLanguageIndexer(db: Database) {
   return async (event: JetstreamEvent) => {
@@ -13,32 +12,11 @@ export function createLanguageIndexer(db: Database) {
     const { operation, rkey, record } = commit;
 
     if (operation === 'delete') {
-      await db.delete(languages).where(and(eq(languages.did, did), eq(languages.rkey, rkey)));
-      logger.info({ did, rkey }, 'Deleted language');
+      await deleteRecord(db, COLLECTION, did, rkey);
       return;
     }
 
     if (!record) return;
-
-    await db
-      .insert(languages)
-      .values({
-        did,
-        rkey,
-        name: sanitize(record.name as string),
-        proficiency: (record.proficiency as string) ?? null,
-        createdAt: new Date(record.createdAt as string),
-        indexedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: [languages.did, languages.rkey],
-        set: {
-          name: sanitize(record.name as string),
-          proficiency: (record.proficiency as string) ?? null,
-          indexedAt: new Date(),
-        },
-      });
-
-    logger.info({ did, rkey, operation }, 'Indexed language');
+    await indexRecord(db, COLLECTION, did, rkey, record);
   };
 }
