@@ -71,7 +71,9 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
       const { handleOrDid } = request.params;
 
       const isDid = handleOrDid.startsWith('did:');
-      const condition = isDid ? eq(profiles.did, handleOrDid) : eq(profiles.handle, handleOrDid);
+      // AT Protocol handles are domain names and therefore case-insensitive (RFC 1035)
+      const normalized = isDid ? handleOrDid : handleOrDid.toLowerCase();
+      const condition = isDid ? eq(profiles.did, normalized) : eq(profiles.handle, normalized);
 
       const [profile] = await db.select().from(profiles).where(condition).limit(1);
 
