@@ -11,6 +11,7 @@ const envSchema = z.object({
   OAUTH_JWKS_PATH: z.string(),
   GLITCHTIP_DSN: z.string().url().optional(),
   GEONAMES_USERNAME: z.string().default('gxjansen'),
+  ADMIN_DIDS: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
