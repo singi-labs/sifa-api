@@ -160,9 +160,7 @@ describe('Search API', () => {
     const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=Erlend' });
     expect(res.statusCode).toBe(200);
     const body = res.json();
-    const erlend = body.profiles.find(
-      (p: { did: string }) => p.did === 'did:plc:search-with-role',
-    );
+    const erlend = body.profiles.find((p: { did: string }) => p.did === 'did:plc:search-with-role');
     expect(erlend).toBeDefined();
     expect(erlend.avatar).toBeUndefined();
   });
