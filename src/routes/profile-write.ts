@@ -35,6 +35,7 @@ import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
 import { wipeSifaData } from '../services/profile-wipe.js';
 import {
+  indexProfileSelf,
   indexSkill,
   deleteSkill,
   indexPosition,
@@ -82,6 +83,9 @@ export function registerProfileWriteRoutes(
     await writeToUserPds(session, did, [
       buildApplyWritesOp('update', 'id.sifa.profile.self', 'self', record),
     ]);
+
+    // Write-through: update local DB immediately
+    await indexProfileSelf(db, did, parsed.data);
 
     return reply.status(200).send({ ok: true });
   });
@@ -485,6 +489,9 @@ export function registerProfileWriteRoutes(
             locationRegion: sanitizeOptional(loc?.region) ?? null,
             locationCity: sanitizeOptional(loc?.city) ?? null,
             countryCode: sanitizeOptional(loc?.countryCode) ?? null,
+            openTo: (r.openTo as string[]) ?? null,
+            preferredWorkplace: (r.preferredWorkplace as string[]) ?? null,
+            langs: (r.langs as string[]) ?? null,
             createdAt: now,
             indexedAt: now,
             updatedAt: now,
@@ -499,6 +506,9 @@ export function registerProfileWriteRoutes(
               locationRegion: sanitizeOptional(loc?.region) ?? null,
               locationCity: sanitizeOptional(loc?.city) ?? null,
               countryCode: sanitizeOptional(loc?.countryCode) ?? null,
+              openTo: (r.openTo as string[]) ?? null,
+              preferredWorkplace: (r.preferredWorkplace as string[]) ?? null,
+              langs: (r.langs as string[]) ?? null,
               updatedAt: now,
             },
           });

@@ -17,8 +17,8 @@ import {
 } from '../../src/db/schema/index.js';
 import { eq, and, sql } from 'drizzle-orm';
 
-// These functions don't exist yet -- this test will fail (RED)
 import {
+  indexProfileSelf,
   indexSkill,
   deleteSkill,
   indexPosition,
@@ -431,6 +431,102 @@ describe('Record indexer service', () => {
       await expect(
         deleteRecord(db, 'id.sifa.profile.certification', testDid, '3wt-nonexistent'),
       ).resolves.not.toThrow();
+    });
+  });
+
+  // --- Profile self indexing ---
+
+  describe('indexProfileSelf', () => {
+    afterEach(async () => {
+      await db
+        .update(profiles)
+        .set({
+          headline: null,
+          about: null,
+          industry: null,
+          locationCountry: null,
+          locationRegion: null,
+          locationCity: null,
+          countryCode: null,
+          openTo: null,
+          preferredWorkplace: null,
+          langs: null,
+        })
+        .where(eq(profiles.did, testDid));
+    });
+
+    it('updates profile fields including openTo', async () => {
+      await indexProfileSelf(db, testDid, {
+        headline: 'Senior Developer',
+        about: 'Building cool stuff',
+        openTo: ['id.sifa.defs#fullTimeRoles', 'id.sifa.defs#mentoring'],
+      });
+
+      const [row] = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.did, testDid));
+      expect(row.headline).toBe('Senior Developer');
+      expect(row.about).toBe('Building cool stuff');
+      expect(row.openTo).toEqual(['id.sifa.defs#fullTimeRoles', 'id.sifa.defs#mentoring']);
+    });
+
+    it('updates location fields', async () => {
+      await indexProfileSelf(db, testDid, {
+        location: {
+          country: 'Netherlands',
+          countryCode: 'NL',
+          region: 'Noord-Holland',
+          city: 'Amsterdam',
+        },
+      });
+
+      const [row] = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.did, testDid));
+      expect(row.locationCountry).toBe('Netherlands');
+      expect(row.countryCode).toBe('NL');
+      expect(row.locationRegion).toBe('Noord-Holland');
+      expect(row.locationCity).toBe('Amsterdam');
+    });
+
+    it('clears openTo when empty array is sent', async () => {
+      // First set some values
+      await indexProfileSelf(db, testDid, {
+        openTo: ['id.sifa.defs#fullTimeRoles'],
+      });
+
+      // Then clear them
+      await indexProfileSelf(db, testDid, {
+        openTo: [],
+      });
+
+      const [row] = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.did, testDid));
+      expect(row.openTo).toEqual([]);
+    });
+
+    it('is idempotent -- calling twice with same data produces same result', async () => {
+      const data = {
+        headline: 'Test Headline',
+        openTo: ['id.sifa.defs#contractRoles'],
+        preferredWorkplace: ['remote'],
+        langs: ['en', 'nl'],
+      };
+
+      await indexProfileSelf(db, testDid, data);
+      await indexProfileSelf(db, testDid, data);
+
+      const rows = await db
+        .select()
+        .from(profiles)
+        .where(eq(profiles.did, testDid));
+      expect(rows).toHaveLength(1);
+      expect(rows[0].headline).toBe('Test Headline');
+      expect(rows[0].openTo).toEqual(['id.sifa.defs#contractRoles']);
     });
   });
 });
