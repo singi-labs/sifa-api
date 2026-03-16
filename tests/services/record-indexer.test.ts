@@ -462,10 +462,7 @@ describe('Record indexer service', () => {
         openTo: ['id.sifa.defs#fullTimeRoles', 'id.sifa.defs#mentoring'],
       });
 
-      const [row] = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.did, testDid));
+      const [row] = await db.select().from(profiles).where(eq(profiles.did, testDid));
       expect(row.headline).toBe('Senior Developer');
       expect(row.about).toBe('Building cool stuff');
       expect(row.openTo).toEqual(['id.sifa.defs#fullTimeRoles', 'id.sifa.defs#mentoring']);
@@ -481,10 +478,7 @@ describe('Record indexer service', () => {
         },
       });
 
-      const [row] = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.did, testDid));
+      const [row] = await db.select().from(profiles).where(eq(profiles.did, testDid));
       expect(row.locationCountry).toBe('Netherlands');
       expect(row.countryCode).toBe('NL');
       expect(row.locationRegion).toBe('Noord-Holland');
@@ -502,10 +496,7 @@ describe('Record indexer service', () => {
         openTo: [],
       });
 
-      const [row] = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.did, testDid));
+      const [row] = await db.select().from(profiles).where(eq(profiles.did, testDid));
       expect(row.openTo).toEqual([]);
     });
 
@@ -520,10 +511,7 @@ describe('Record indexer service', () => {
       await indexProfileSelf(db, testDid, data);
       await indexProfileSelf(db, testDid, data);
 
-      const rows = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.did, testDid));
+      const rows = await db.select().from(profiles).where(eq(profiles.did, testDid));
       expect(rows).toHaveLength(1);
       expect(rows[0].headline).toBe('Test Headline');
       expect(rows[0].openTo).toEqual(['id.sifa.defs#contractRoles']);
