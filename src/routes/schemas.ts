@@ -24,6 +24,11 @@ export const profileSelfSchema = z
   })
   .passthrough();
 
+const strongRefSchema = z.object({
+  uri: z.string(),
+  cid: z.string(),
+});
+
 export const positionSchema = z.object({
   companyName: z.string().min(1).max(200),
   title: z.string().min(1).max(200),
@@ -34,6 +39,7 @@ export const positionSchema = z.object({
   startDate: z.string().optional(),
   endDate: z.string().optional(),
   current: z.boolean().default(false),
+  skills: z.array(strongRefSchema).max(50).optional(),
 });
 
 export const educationSchema = z.object({
