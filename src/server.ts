@@ -73,7 +73,15 @@ export async function buildServer(config: Env) {
   await app.register(helmet);
   await app.register(cors, { origin: config.PUBLIC_URL, credentials: true });
   await app.register(cookie);
-  await app.register(rateLimit, { max: 60, timeWindow: '1 minute' });
+  await app.register(rateLimit, {
+    max: 60,
+    timeWindow: '1 minute',
+    allowList: (req) => {
+      // Exempt Docker-internal traffic (service-to-service calls from sifa-web)
+      const ip = req.ip;
+      return ip === '127.0.0.1' || ip === '::1' || ip.startsWith('172.') || ip.startsWith('10.');
+    },
+  });
 
   app.setErrorHandler(async (error: FastifyError, _request, reply) => {
     if (config.GLITCHTIP_DSN) {
