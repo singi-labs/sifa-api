@@ -106,6 +106,12 @@ describe('GET /api/profile/:handleOrDid', () => {
     expect(res.json().handle).toBe('testuser.bsky.social');
   });
 
+  it('returns profile by handle case-insensitively', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/profile/TestUser.Bsky.Social' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json().did).toBe('did:plc:test-profile');
+  });
+
   it('returns 404 for unknown handle', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/profile/nonexistent.invalid' });
     expect(res.statusCode).toBe(404);
