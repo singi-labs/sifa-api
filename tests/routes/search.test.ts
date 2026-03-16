@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll, vi, beforeEach } from 'vitest';
 import { buildServer } from '../../src/server.js';
 import { createDb } from '../../src/db/index.js';
 import { profiles, positions } from '../../src/db/schema/index.js';
@@ -7,6 +7,10 @@ import { writeFileSync, mkdirSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import type { FastifyInstance } from 'fastify';
+
+vi.mock('../../src/services/handle-resolver.js', () => ({
+  resolveHandleFromNetwork: vi.fn().mockResolvedValue(null),
+}));
 
 describe('Search API', () => {
   let app: FastifyInstance;
@@ -171,5 +175,121 @@ describe('Search API', () => {
     for (const profile of body.profiles) {
       expect(profile.rank).toBeUndefined();
     }
+  });
+
+  it('DB results include claimed: true', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=TypeScript' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.profiles.length).toBeGreaterThanOrEqual(1);
+    for (const profile of body.profiles) {
+      expect(profile.claimed).toBe(true);
+    }
+  });
+
+  describe('AT Protocol handle resolution fallback', () => {
+    let handleResolverMock: typeof import('../../src/services/handle-resolver.js');
+
+    beforeEach(async () => {
+      handleResolverMock = await import('../../src/services/handle-resolver.js');
+      vi.mocked(handleResolverMock.resolveHandleFromNetwork).mockReset();
+      vi.mocked(handleResolverMock.resolveHandleFromNetwork).mockResolvedValue(null);
+    });
+
+    it('resolves AT Protocol handle when DB has no results and returns claimed: false', async () => {
+      vi.mocked(handleResolverMock.resolveHandleFromNetwork).mockResolvedValue({
+        did: 'did:plc:network-resolved',
+        handle: 'networkuser.bsky.social',
+        displayName: 'Network User',
+        avatar: 'https://cdn.bsky.app/img/avatar/network.jpg',
+        about: 'Found via network',
+      });
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/search/profiles?q=networkuser.bsky.social',
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.profiles.length).toBe(1);
+      const profile = body.profiles[0];
+      expect(profile.did).toBe('did:plc:network-resolved');
+      expect(profile.handle).toBe('networkuser.bsky.social');
+      expect(profile.displayName).toBe('Network User');
+      expect(profile.avatar).toBe('https://cdn.bsky.app/img/avatar/network.jpg');
+      expect(profile.about).toBe('Found via network');
+      expect(profile.claimed).toBe(false);
+    });
+
+    it('returns empty when handle resolution also fails', async () => {
+      vi.mocked(handleResolverMock.resolveHandleFromNetwork).mockResolvedValue(null);
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/search/profiles?q=doesnotexist.bsky.social',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().profiles).toHaveLength(0);
+    });
+
+    it('short queries without dots get .bsky.social appended via resolver', async () => {
+      vi.mocked(handleResolverMock.resolveHandleFromNetwork).mockResolvedValue({
+        did: 'did:plc:short-handle',
+        handle: 'shortname.bsky.social',
+        displayName: 'Short Name',
+        avatar: undefined,
+        about: undefined,
+      });
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/search/profiles?q=shortname',
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      // The resolver was called with the query; it handles .bsky.social appending internally
+      expect(vi.mocked(handleResolverMock.resolveHandleFromNetwork)).toHaveBeenCalledWith(
+        'shortname',
+      );
+      const profile = body.profiles.find((p: { did: string }) => p.did === 'did:plc:short-handle');
+      expect(profile).toBeDefined();
+      expect(profile.claimed).toBe(false);
+    });
+
+    it('does not duplicate when handle resolves to DID already in DB', async () => {
+      vi.mocked(handleResolverMock.resolveHandleFromNetwork).mockResolvedValue({
+        did: 'did:plc:search-test',
+        handle: 'searchtest.bsky.social',
+        displayName: 'Alice Wonderland',
+        avatar: 'https://cdn.bsky.app/img/avatar/did:plc:search-test/test.jpg',
+        about: 'Building distributed systems',
+      });
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/search/profiles?q=TypeScript',
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      const aliceResults = body.profiles.filter(
+        (p: { did: string }) => p.did === 'did:plc:search-test',
+      );
+      expect(aliceResults).toHaveLength(1);
+      expect(aliceResults[0].claimed).toBe(true);
+    });
+
+    it('silently returns DB results when resolution throws', async () => {
+      vi.mocked(handleResolverMock.resolveHandleFromNetwork).mockRejectedValue(
+        new Error('Network error'),
+      );
+
+      const res = await app.inject({
+        method: 'GET',
+        url: '/api/search/profiles?q=TypeScript',
+      });
+      expect(res.statusCode).toBe(200);
+      const body = res.json();
+      expect(body.profiles.length).toBeGreaterThanOrEqual(1);
+    });
   });
 });
