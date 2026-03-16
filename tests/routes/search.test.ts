@@ -23,6 +23,8 @@ describe('Search API', () => {
       .values({
         did: 'did:plc:search-test',
         handle: 'searchtest.bsky.social',
+        displayName: 'Alice Wonderland',
+        avatarUrl: 'https://cdn.bsky.app/img/avatar/did:plc:search-test/test.jpg',
         headline: 'Senior TypeScript Developer',
         about: 'Building distributed systems',
         createdAt: new Date(),
@@ -35,6 +37,7 @@ describe('Search API', () => {
       .values({
         did: 'did:plc:search-with-role',
         handle: 'searchwithrole.bsky.social',
+        displayName: 'Erlend Sogge Heggen',
         headline: 'TypeScript Engineer',
         createdAt: new Date(),
       })
@@ -132,6 +135,36 @@ describe('Search API', () => {
     expect(noRole).toBeDefined();
     expect(noRole.currentRole).toBeUndefined();
     expect(noRole.currentCompany).toBeUndefined();
+  });
+
+  it('finds profile by display name', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=Erlend' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    expect(body.profiles.some((p: { did: string }) => p.did === 'did:plc:search-with-role')).toBe(
+      true,
+    );
+  });
+
+  it('returns displayName and avatar in results', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=TypeScript' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    const alice = body.profiles.find((p: { did: string }) => p.did === 'did:plc:search-test');
+    expect(alice).toBeDefined();
+    expect(alice.displayName).toBe('Alice Wonderland');
+    expect(alice.avatar).toBe('https://cdn.bsky.app/img/avatar/did:plc:search-test/test.jpg');
+  });
+
+  it('omits displayName and avatar when null', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=Erlend' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    const erlend = body.profiles.find(
+      (p: { did: string }) => p.did === 'did:plc:search-with-role',
+    );
+    expect(erlend).toBeDefined();
+    expect(erlend.avatar).toBeUndefined();
   });
 
   it('does not leak rank field in response', async () => {
