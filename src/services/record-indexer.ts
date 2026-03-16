@@ -70,6 +70,7 @@ export async function indexSkill(
 
   const canonical = await resolveSkill(db, skillName);
   const canonicalSkillId = canonical?.id ?? null;
+  const effectiveCategory = category ?? canonical?.category ?? null;
 
   const existing = await db
     .select({ canonicalSkillId: skills.canonicalSkillId })
@@ -85,7 +86,7 @@ export async function indexSkill(
       did,
       rkey,
       skillName,
-      category,
+      category: effectiveCategory,
       canonicalSkillId,
       createdAt: new Date(record.createdAt as string),
       indexedAt: new Date(),
@@ -94,7 +95,7 @@ export async function indexSkill(
       target: [skills.did, skills.rkey],
       set: {
         skillName,
-        category,
+        category: effectiveCategory,
         canonicalSkillId,
         indexedAt: new Date(),
       },

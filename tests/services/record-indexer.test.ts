@@ -112,6 +112,36 @@ describe('Record indexer service', () => {
       expect(rows[0].canonicalSkillId).not.toBeNull();
     });
 
+    it('auto-fills category from canonical skill when user omits it', async () => {
+      await indexSkill(db, testDid, '3wt-skill-autocat', {
+        skillName: 'WriteThrough TestLang',
+        createdAt: '2026-03-16T00:00:00Z',
+      });
+
+      const rows = await db
+        .select()
+        .from(skills)
+        .where(and(eq(skills.did, testDid), eq(skills.rkey, '3wt-skill-autocat')));
+      expect(rows).toHaveLength(1);
+      expect(rows[0].canonicalSkillId).not.toBeNull();
+      expect(rows[0].category).toBe('technical');
+    });
+
+    it('preserves user-provided category even when canonical differs', async () => {
+      await indexSkill(db, testDid, '3wt-skill-usercat', {
+        skillName: 'WriteThrough TestLang',
+        category: 'business',
+        createdAt: '2026-03-16T00:00:00Z',
+      });
+
+      const rows = await db
+        .select()
+        .from(skills)
+        .where(and(eq(skills.did, testDid), eq(skills.rkey, '3wt-skill-usercat')));
+      expect(rows).toHaveLength(1);
+      expect(rows[0].category).toBe('business');
+    });
+
     it('is idempotent -- second call updates, does not duplicate', async () => {
       await indexSkill(db, testDid, '3wt-skill-3', {
         skillName: 'React',
