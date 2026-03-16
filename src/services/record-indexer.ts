@@ -188,7 +188,10 @@ export async function indexPosition(
     }
   }
 
-  logger.info({ did, rkey, skillLinks: skillRefs?.length ?? 0 }, 'Indexed position (write-through)');
+  logger.info(
+    { did, rkey, skillLinks: skillRefs?.length ?? 0 },
+    'Indexed position (write-through)',
+  );
 }
 
 export async function deletePosition(db: Database, did: string, rkey: string): Promise<void> {
@@ -249,7 +252,15 @@ export async function deleteEducation(db: Database, did: string, rkey: string): 
 const COLLECTION_INDEXERS: Record<
   string,
   {
-    table: typeof certifications | typeof projects | typeof volunteering | typeof publications | typeof courses | typeof honors | typeof languages | typeof externalAccounts;
+    table:
+      | typeof certifications
+      | typeof projects
+      | typeof volunteering
+      | typeof publications
+      | typeof courses
+      | typeof honors
+      | typeof languages
+      | typeof externalAccounts;
     fields: (record: Record<string, unknown>) => Record<string, unknown>;
   }
 > = {

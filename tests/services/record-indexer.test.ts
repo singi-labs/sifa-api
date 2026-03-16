@@ -67,7 +67,9 @@ describe('Record indexer service', () => {
     await db.delete(courses).where(eq(courses.did, testDid));
     await db.delete(honors).where(eq(honors.did, testDid));
     await db.delete(languages).where(eq(languages.did, testDid));
-    await db.execute(sql`DELETE FROM canonical_skills WHERE slug = 'javascript' AND canonical_name = 'JavaScript'`);
+    await db.execute(
+      sql`DELETE FROM canonical_skills WHERE slug = 'javascript' AND canonical_name = 'JavaScript'`,
+    );
     await db.execute(sql`DELETE FROM profiles WHERE did = ${testDid}`);
     await db.$client.end();
   });
@@ -197,7 +199,12 @@ describe('Record indexer service', () => {
       const links = await db
         .select()
         .from(skillPositionLinks)
-        .where(and(eq(skillPositionLinks.did, testDid), eq(skillPositionLinks.positionRkey, '3wt-pos-link')));
+        .where(
+          and(
+            eq(skillPositionLinks.did, testDid),
+            eq(skillPositionLinks.positionRkey, '3wt-pos-link'),
+          ),
+        );
       expect(links).toHaveLength(1);
       expect(links[0].skillRkey).toBe('3wt-link-skill');
     });
