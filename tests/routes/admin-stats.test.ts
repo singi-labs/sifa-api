@@ -8,17 +8,15 @@ import type { Env } from '../../src/config.js';
 // and intercepting the Drizzle calls.
 
 vi.mock('../../src/middleware/auth.js', () => ({
-  createAuthMiddleware: () =>
-    async (request: FastifyRequest, _reply: FastifyReply) => {
-      request.did = 'did:plc:admin1';
-    },
+  createAuthMiddleware: () => async (request: FastifyRequest, _reply: FastifyReply) => {
+    request.did = 'did:plc:admin1';
+  },
 }));
 
 vi.mock('../../src/middleware/admin.js', () => ({
-  createAdminMiddleware: () =>
-    async (_request: FastifyRequest, _reply: FastifyReply) => {
-      // pass through
-    },
+  createAdminMiddleware: () => async (_request: FastifyRequest, _reply: FastifyReply) => {
+    // pass through
+  },
 }));
 
 // Track DB query results
@@ -85,9 +83,12 @@ describe('Admin stats signups endpoint', () => {
   it('GET /api/admin/stats/signups returns signup data with default days=30', async () => {
     // Query order: 1) total count, 2) signup rows, 3) prior count
     dbQueryResults = [
-      [{ value: 42 }],                                           // total
-      [{ date: '2026-03-14', count: 3 }, { date: '2026-03-15', count: 2 }], // signups
-      [{ value: 37 }],                                           // prior count
+      [{ value: 42 }], // total
+      [
+        { date: '2026-03-14', count: 3 },
+        { date: '2026-03-15', count: 2 },
+      ], // signups
+      [{ value: 37 }], // prior count
     ];
     const db = makeDb();
 
@@ -108,7 +109,10 @@ describe('Admin stats signups endpoint', () => {
     // days=0: 1) total count, 2) signup rows (no prior count query)
     dbQueryResults = [
       [{ value: 30 }],
-      [{ date: '2026-01-01', count: 10 }, { date: '2026-02-01', count: 20 }],
+      [
+        { date: '2026-01-01', count: 10 },
+        { date: '2026-02-01', count: 20 },
+      ],
     ];
     const db = makeDb();
 
@@ -154,11 +158,7 @@ describe('Admin stats signups endpoint', () => {
   });
 
   it('caches response in Valkey when not cached', async () => {
-    dbQueryResults = [
-      [{ value: 5 }],
-      [{ date: '2026-03-15', count: 5 }],
-      [{ value: 0 }],
-    ];
+    dbQueryResults = [[{ value: 5 }], [{ date: '2026-03-15', count: 5 }], [{ value: 0 }]];
     const db = makeDb();
     const valkey = createMockValkey();
 
@@ -178,11 +178,7 @@ describe('Admin stats signups endpoint', () => {
 
     for (const days of ['7', '90', '0']) {
       dbQueryIndex = 0;
-      dbQueryResults = [
-        [{ value: 0 }],
-        [],
-        [{ value: 0 }],
-      ];
+      dbQueryResults = [[{ value: 0 }], [], [{ value: 0 }]];
       const res = await app.inject({ method: 'GET', url: `/api/admin/stats/signups?days=${days}` });
       expect(res.statusCode).toBe(200);
     }
