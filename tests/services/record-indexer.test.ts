@@ -46,10 +46,10 @@ describe('Record indexer service', () => {
     await db
       .insert(canonicalSkills)
       .values({
-        canonicalName: 'JavaScript',
-        slug: 'javascript',
+        canonicalName: 'WriteThrough TestLang',
+        slug: 'writethrough-testlang',
         category: 'technical',
-        aliases: ['js', 'javascript', 'ecmascript'],
+        aliases: ['wt-test', 'writethrough-testlang'],
         userCount: 0,
       })
       .onConflictDoNothing();
@@ -68,7 +68,7 @@ describe('Record indexer service', () => {
     await db.delete(honors).where(eq(honors.did, testDid));
     await db.delete(languages).where(eq(languages.did, testDid));
     await db.execute(
-      sql`DELETE FROM canonical_skills WHERE slug = 'javascript' AND canonical_name = 'JavaScript'`,
+      sql`DELETE FROM canonical_skills WHERE slug = 'writethrough-testlang' AND canonical_name = 'WriteThrough TestLang'`,
     );
     await db.execute(sql`DELETE FROM profiles WHERE did = ${testDid}`);
     await db.$client.end();
@@ -99,7 +99,7 @@ describe('Record indexer service', () => {
 
     it('resolves canonical skill when alias matches', async () => {
       await indexSkill(db, testDid, '3wt-skill-2', {
-        skillName: 'JS',
+        skillName: 'WT-Test',
         category: 'technical',
         createdAt: '2026-03-16T00:00:00Z',
       });
