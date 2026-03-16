@@ -13,9 +13,7 @@ export interface ResolvedProfile {
 const SIMPLE_HANDLE_RE = /^[a-zA-Z0-9-]+$/;
 const publicAgent = new Agent('https://public.api.bsky.app');
 
-export async function resolveHandleFromNetwork(
-  query: string,
-): Promise<ResolvedProfile | null> {
+export async function resolveHandleFromNetwork(query: string): Promise<ResolvedProfile | null> {
   const candidates: string[] = [];
 
   if (isValidHandle(query)) {

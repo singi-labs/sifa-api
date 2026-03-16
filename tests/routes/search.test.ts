@@ -251,9 +251,7 @@ describe('Search API', () => {
       expect(vi.mocked(handleResolverMock.resolveHandleFromNetwork)).toHaveBeenCalledWith(
         'shortname',
       );
-      const profile = body.profiles.find(
-        (p: { did: string }) => p.did === 'did:plc:short-handle',
-      );
+      const profile = body.profiles.find((p: { did: string }) => p.did === 'did:plc:short-handle');
       expect(profile).toBeDefined();
       expect(profile.claimed).toBe(false);
     });
