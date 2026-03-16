@@ -1,4 +1,4 @@
-import { count, sql, gte } from 'drizzle-orm';
+import { count, desc, sql, gte } from 'drizzle-orm';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
@@ -13,6 +13,10 @@ const CACHE_TTL = 300; // 5 minutes
 
 const querySchema = z.object({
   days: z.enum(['7', '30', '90', '0']).default('30'),
+});
+
+const latestSignupsSchema = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
 interface SignupRow {
@@ -111,6 +115,55 @@ export function registerAdminStatsRoutes(
       const response: SignupsResponse = { totalUsers, signups };
 
       // Cache result
+      if (valkey) {
+        await valkey.setex(cacheKey, CACHE_TTL, JSON.stringify(response));
+      }
+
+      return reply.send(response);
+    },
+  );
+
+  app.get(
+    '/api/admin/stats/latest-signups',
+    { preHandler: [requireAuth, requireAdmin] },
+    async (request, reply) => {
+      const parsed = latestSignupsSchema.safeParse(request.query);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'Invalid query', details: parsed.error.format() });
+      }
+
+      const { limit } = parsed.data;
+      const cacheKey = `admin:stats:latest-signups:${limit}`;
+
+      if (valkey) {
+        const cached = await valkey.get(cacheKey);
+        if (cached !== null) {
+          return reply.send(JSON.parse(cached));
+        }
+      }
+
+      const rows = await db
+        .select({
+          did: profiles.did,
+          handle: profiles.handle,
+          displayName: profiles.displayName,
+          avatarUrl: profiles.avatarUrl,
+          createdAt: profiles.createdAt,
+        })
+        .from(profiles)
+        .orderBy(desc(profiles.createdAt))
+        .limit(limit);
+
+      const users = rows.map((r) => ({
+        did: r.did,
+        handle: r.handle,
+        displayName: r.displayName,
+        avatarUrl: r.avatarUrl,
+        createdAt: r.createdAt.toISOString(),
+      }));
+
+      const response = { users };
+
       if (valkey) {
         await valkey.setex(cacheKey, CACHE_TTL, JSON.stringify(response));
       }
