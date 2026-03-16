@@ -22,6 +22,7 @@ import { registerSkillsRoutes } from './routes/skills.js';
 import { registerExternalAccountRoutes } from './routes/external-accounts.js';
 import { registerSuggestionRoutes } from './routes/suggestions.js';
 import { registerStatsRoutes } from './routes/stats.js';
+import { registerAdminStatsRoutes } from './routes/admin-stats.js';
 import { registerLocationRoutes } from './routes/location.js';
 import { registerWellKnownRoutes } from './routes/well-known.js';
 import { createJetstreamClient } from './jetstream/client.js';
@@ -104,6 +105,7 @@ export async function buildServer(config: Env) {
   registerExternalAccountRoutes(app, db, oauthClient, valkey);
   registerSuggestionRoutes(app, db, oauthClient, config.PUBLIC_URL);
   registerStatsRoutes(app, db, valkey);
+  registerAdminStatsRoutes(app, db, valkey, oauthClient, config);
   registerLocationRoutes(app, config.GEONAMES_USERNAME);
 
   // Start Jetstream in non-test mode
