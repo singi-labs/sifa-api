@@ -15,15 +15,19 @@ const KNOWN_PDS_HOSTS: { pattern: RegExp; name: string }[] = [
   { pattern: /^blacksky\.app$/i, name: 'blacksky' },
   { pattern: /\.eurosky\.social$/i, name: 'eurosky' },
   { pattern: /^eurosky\.social$/i, name: 'eurosky' },
+  { pattern: /\.northsky\.social$/i, name: 'northsky' },
+  { pattern: /^northsky\.social$/i, name: 'northsky' },
+  { pattern: /\.selfhosted\.social$/i, name: 'selfhosted-social' },
+  { pattern: /^selfhosted\.social$/i, name: 'selfhosted-social' },
 ];
 
-export function mapPdsHostToProvider(host: string): PdsProviderInfo | null {
+export function mapPdsHostToProvider(host: string): PdsProviderInfo {
   for (const entry of KNOWN_PDS_HOSTS) {
     if (entry.pattern.test(host)) {
       return { name: entry.name, host };
     }
   }
-  return null;
+  return { name: 'selfhosted', host };
 }
 
 export function extractPdsHostFromEndpoint(endpoint: string): string | null {
