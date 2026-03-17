@@ -112,7 +112,11 @@ async function fetchAtprotoFollowersCount(
   }
 }
 
-export function registerProfileRoutes(app: FastifyInstance, db: Database, valkey: ValkeyClient | null = null) {
+export function registerProfileRoutes(
+  app: FastifyInstance,
+  db: Database,
+  valkey: ValkeyClient | null = null,
+) {
   app.get<{ Params: { handleOrDid: string } }>(
     '/api/profile/:handleOrDid',
     async (request, reply) => {
