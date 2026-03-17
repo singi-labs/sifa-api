@@ -95,9 +95,19 @@ export async function buildServer(config: Env) {
 
   app.get('/api/health', async () => ({ status: 'ok' }));
 
-  // Create OAuth client conditionally (skip in test mode or when JWKS file doesn't exist)
+  // Create OAuth client (required in non-test mode)
   let oauthClient = null;
-  if (config.NODE_ENV !== 'test' && valkey && existsSync(config.OAUTH_JWKS_PATH)) {
+  if (config.NODE_ENV !== 'test') {
+    if (!valkey) {
+      throw new Error('Valkey connection required for OAuth — check VALKEY_URL');
+    }
+    if (!existsSync(config.OAUTH_JWKS_PATH)) {
+      const privateKeyPath = config.OAUTH_JWKS_PATH.replace('jwks', 'private-key');
+      throw new Error(
+        `OAuth keys missing — expected ${config.OAUTH_JWKS_PATH} and ${privateKeyPath}. ` +
+          'Generate with: node -e "..." (see sifa-deploy README)',
+      );
+    }
     oauthClient = await createOAuthClient(config, db, valkey);
   }
 

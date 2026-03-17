@@ -3,10 +3,12 @@ import { readFileSync, existsSync } from 'node:fs';
 import type { Env } from '../config.js';
 
 export function registerOAuthMetadata(app: FastifyInstance, config: Env) {
-  if (!existsSync(config.OAUTH_JWKS_PATH)) {
-    app.log.warn(
-      `JWKS file not found at ${config.OAUTH_JWKS_PATH}, skipping OAuth metadata registration`,
+  if (config.NODE_ENV !== 'test' && !existsSync(config.OAUTH_JWKS_PATH)) {
+    throw new Error(
+      `JWKS file not found at ${config.OAUTH_JWKS_PATH} — OAuth metadata cannot be registered`,
     );
+  }
+  if (!existsSync(config.OAUTH_JWKS_PATH)) {
     return;
   }
 

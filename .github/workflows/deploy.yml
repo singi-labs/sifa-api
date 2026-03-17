@@ -35,5 +35,32 @@ jobs:
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
             cd /opt/sifa
-            docker compose pull
-            docker compose up -d --force-recreate --remove-orphans
+            docker compose pull sifa-api
+            docker compose up -d --force-recreate --no-deps sifa-api
+            docker image prune -af
+
+      - name: Verify deployment health
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            for i in $(seq 1 10); do
+              status=$(curl -sf -o /dev/null -w '%{http_code}' http://127.0.0.1:3100/api/health/ready 2>/dev/null || echo "000")
+              if [ "$status" = "200" ]; then
+                echo "API healthy after $((i * 3))s"
+                # Verify OAuth is functional (should return 400 not 503)
+                oauth_status=$(curl -sf -o /dev/null -w '%{http_code}' -X POST http://127.0.0.1:3100/oauth/login -H 'Content-Type: application/json' -d '{"handle":"test.invalid"}' 2>/dev/null || echo "000")
+                if [ "$oauth_status" = "503" ]; then
+                  echo "FATAL: OAuth not configured — keys may be missing"
+                  exit 1
+                fi
+                echo "OAuth endpoint responding (status: $oauth_status)"
+                exit 0
+              fi
+              echo "Waiting for API... (attempt $i, status: $status)"
+              sleep 3
+            done
+            echo "FATAL: API did not become healthy within 30s"
+            exit 1
