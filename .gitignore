@@ -5,5 +5,4 @@ keys/
 *.tsbuildinfo
 coverage/
 .DS_Store
-.worktrees/
-.worktrees/
+.worktrees

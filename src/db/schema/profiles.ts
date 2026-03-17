@@ -19,6 +19,7 @@ export const profiles = pgTable(
     openTo: text('open_to').array(),
     preferredWorkplace: text('preferred_workplace').array(),
     langs: text('langs').array(),
+    pdsHost: text('pds_host'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     indexedAt: timestamp('indexed_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),

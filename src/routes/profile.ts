@@ -23,6 +23,7 @@ import {
 import { resolveSessionDid } from '../middleware/auth.js';
 import { isVerifiablePlatform } from '../services/verification.js';
 import { resolveProfileFields } from '../lib/resolve-profile.js';
+import { resolvePdsHost, mapPdsHostToProvider } from '../lib/pds-provider.js';
 
 export async function getMutualFollowCount(db: Database, did: string): Promise<number> {
   // Raw SQL required: Drizzle ORM doesn't support self-join aggregate subqueries for mutual follow counting
@@ -85,10 +86,13 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
             { actor: handleOrDid },
             { signal: AbortSignal.timeout(3000) },
           );
-          const [inviteCountResult] = await db
-            .select({ value: count() })
-            .from(invites)
-            .where(eq(invites.subjectDid, bskyProfile.data.did));
+          const [inviteCountResult, pdsHost] = await Promise.all([
+            db
+              .select({ value: count() })
+              .from(invites)
+              .where(eq(invites.subjectDid, bskyProfile.data.did)),
+            resolvePdsHost(bskyProfile.data.did),
+          ]);
 
           return reply.send({
             did: bskyProfile.data.did,
@@ -128,7 +132,8 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
             followersCount: 0,
             followingCount: 0,
             connectionsCount: 0,
-            inviteCount: inviteCountResult?.value ?? 0,
+            inviteCount: inviteCountResult[0]?.value ?? 0,
+            pdsProvider: pdsHost ? mapPdsHostToProvider(pdsHost) : null,
             claimed: false,
           });
         } catch {
@@ -182,6 +187,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         connectionsCountResult,
         inviteCountResult,
         viewerRelationship,
+        resolvedPdsHost,
       ] = await Promise.all([
         db
           .select({ value: count() })
@@ -196,6 +202,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         viewerDid && viewerDid !== profile.did
           ? checkViewerRelationship(db, viewerDid, profile.did)
           : Promise.resolve(undefined),
+        profile.pdsHost ? Promise.resolve(null) : resolvePdsHost(profile.did),
       ]);
 
       const followersCount = followersResult[0]?.value ?? 0;
@@ -220,6 +227,19 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         const posList = linksByPosition.get(link.positionRkey) ?? [];
         posList.push(link.skillRkey);
         linksByPosition.set(link.positionRkey, posList);
+      }
+
+      // Use cached PDS host or the result resolved in parallel above
+      const pdsHost = profile.pdsHost ?? resolvedPdsHost;
+      if (!profile.pdsHost && pdsHost) {
+        // Cache for future requests (fire-and-forget)
+        void db
+          .update(profiles)
+          .set({ pdsHost })
+          .where(eq(profiles.did, profile.did))
+          .catch((err: unknown) => {
+            request.log.warn({ err, did: profile.did }, 'Failed to cache pdsHost');
+          });
       }
 
       // Find primary external account for website display
@@ -360,6 +380,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         followingCount,
         connectionsCount: connectionsCountResult,
         inviteCount: inviteCountResult[0]?.value ?? 0,
+        pdsProvider: pdsHost ? mapPdsHostToProvider(pdsHost) : null,
         claimed: true,
         isOwnProfile: viewerDid === profile.did,
         ...(viewerRelationship
