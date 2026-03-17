@@ -62,9 +62,10 @@ export async function resolvePdsHost(did: string): Promise<string | null> {
       const suffix = did.slice('did:web:'.length);
       const [encodedHost = '', ...pathParts] = suffix.split(':');
       const host = decodeURIComponent(encodedHost);
-      const path = pathParts.length > 0
-        ? pathParts.map(decodeURIComponent).join('/') + '/did.json'
-        : '.well-known/did.json';
+      const path =
+        pathParts.length > 0
+          ? pathParts.map(decodeURIComponent).join('/') + '/did.json'
+          : '.well-known/did.json';
       return await fetchDidDoc(`https://${host}/${path}`);
     } catch (err) {
       logger.warn({ did, err }, 'Failed to resolve did:web document');
