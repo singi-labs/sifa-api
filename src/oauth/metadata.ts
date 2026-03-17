@@ -4,7 +4,9 @@ import type { Env } from '../config.js';
 
 export function registerOAuthMetadata(app: FastifyInstance, config: Env) {
   if (config.NODE_ENV !== 'test' && !existsSync(config.OAUTH_JWKS_PATH)) {
-    throw new Error(`JWKS file not found at ${config.OAUTH_JWKS_PATH} — OAuth metadata cannot be registered`);
+    throw new Error(
+      `JWKS file not found at ${config.OAUTH_JWKS_PATH} — OAuth metadata cannot be registered`,
+    );
   }
   if (!existsSync(config.OAUTH_JWKS_PATH)) {
     return;
