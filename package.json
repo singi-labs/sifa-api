@@ -60,10 +60,14 @@
     "drizzle-kit": "0.31.9",
     "eslint": "10.0.3",
     "husky": "9.1.7",
+    "lint-staged": "16.4.0",
     "prettier": "3.5.3",
     "tsx": "4.21.0",
     "typescript": "5.9.3",
     "typescript-eslint": "8.56.1",
     "vitest": "4.0.18"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,json,css,md}": "prettier --write"
   }
 }
