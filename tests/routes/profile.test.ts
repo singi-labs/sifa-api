@@ -126,4 +126,11 @@ describe('GET /api/profile/:handleOrDid', () => {
     expect(typeof body.followersCount).toBe('number');
     expect(typeof body.followingCount).toBe('number');
   });
+
+  it('returns atprotoFollowersCount field', async () => {
+    const res = await app.inject({ method: 'GET', url: '/api/profile/testuser.bsky.social' });
+    const body = res.json();
+    expect(body.atprotoFollowersCount).toBeDefined();
+    expect(typeof body.atprotoFollowersCount).toBe('number');
+  });
 });
