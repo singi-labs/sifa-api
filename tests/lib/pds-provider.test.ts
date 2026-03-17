@@ -46,12 +46,28 @@ describe('mapPdsHostToProvider', () => {
     expect(result).toEqual({ name: 'eurosky', host: 'pds.eurosky.social' });
   });
 
-  it('returns null for unknown PDS host', () => {
-    expect(mapPdsHostToProvider('my-pds.example.com')).toBeNull();
+  it('maps northsky.social to northsky', () => {
+    const result = mapPdsHostToProvider('pds.northsky.social');
+    expect(result).toEqual({ name: 'northsky', host: 'pds.northsky.social' });
   });
 
-  it('returns null for self-hosted PDS', () => {
-    expect(mapPdsHostToProvider('pds.alice.dev')).toBeNull();
+  it('maps selfhosted.social to selfhosted-social', () => {
+    const result = mapPdsHostToProvider('pds.selfhosted.social');
+    expect(result).toEqual({ name: 'selfhosted-social', host: 'pds.selfhosted.social' });
+  });
+
+  it('returns selfhosted for unknown PDS host', () => {
+    expect(mapPdsHostToProvider('my-pds.example.com')).toEqual({
+      name: 'selfhosted',
+      host: 'my-pds.example.com',
+    });
+  });
+
+  it('returns selfhosted for individual self-hosted PDS', () => {
+    expect(mapPdsHostToProvider('pds.alice.dev')).toEqual({
+      name: 'selfhosted',
+      host: 'pds.alice.dev',
+    });
   });
 });
 
