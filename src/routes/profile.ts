@@ -237,7 +237,9 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
             .update(profiles)
             .set({ pdsHost })
             .where(eq(profiles.did, profile.did))
-            .catch(() => {});
+            .catch((err: unknown) => {
+              request.log.warn({ err, did: profile.did }, 'Failed to cache pdsHost');
+            });
         }
       }
 
