@@ -13,6 +13,8 @@ const loginSchema = z.object({
   handle: z.string().min(1).max(253),
 });
 
+const SIMPLE_HANDLE_RE = /^[a-zA-Z0-9-]+$/;
+
 export function registerOAuthRoutes(
   app: FastifyInstance,
   db: Database,
@@ -49,25 +51,49 @@ export function registerOAuthRoutes(
         'repo:id.sifa.graph.follow',
       ].join(' ');
 
-      let url: URL;
-      try {
-        url = await oauthClient.authorize(body.data.handle, {
-          scope: granularScope,
-          prompt: 'login',
-        });
-      } catch {
-        // PDS may not support granular scopes — fall back to transition:generic
-        app.log.warn(
-          { handle: body.data.handle },
-          'Granular scopes rejected by PDS, falling back to transition:generic',
-        );
-        url = await oauthClient.authorize(body.data.handle, {
-          scope: 'atproto transition:generic',
-          prompt: 'login',
-        });
+      const handle = body.data.handle;
+
+      // Build candidate list: original handle, plus .bsky.social fallback for bare usernames
+      const candidates: string[] = [handle];
+      if (SIMPLE_HANDLE_RE.test(handle) && !handle.includes('.')) {
+        candidates.push(`${handle}.bsky.social`);
       }
 
-      return reply.send({ redirectUrl: url.toString() });
+      let lastError: unknown;
+      for (const candidate of candidates) {
+        try {
+          let url: URL;
+          try {
+            url = await oauthClient.authorize(candidate, {
+              scope: granularScope,
+              prompt: 'login',
+            });
+          } catch {
+            // PDS may not support granular scopes — fall back to transition:generic
+            app.log.warn(
+              { handle: candidate },
+              'Granular scopes rejected by PDS, falling back to transition:generic',
+            );
+            url = await oauthClient.authorize(candidate, {
+              scope: 'atproto transition:generic',
+              prompt: 'login',
+            });
+          }
+          return reply.send({ redirectUrl: url.toString() });
+        } catch (err) {
+          app.log.debug({ handle: candidate, err }, 'OAuth authorize failed for candidate');
+          lastError = err;
+        }
+      }
+
+      app.log.warn({ handle, lastError }, 'All handle candidates failed');
+      return reply.status(400).send({
+        error: 'HandleNotFound',
+        message:
+          'Could not find an account for that handle. ' +
+          'Enter your full handle including the domain (e.g. "jay.bsky.social" or "alice.custom-pds.example"). ' +
+          'A username alone (e.g. "jay") only works for Bluesky accounts.',
+      });
     },
   );
 
