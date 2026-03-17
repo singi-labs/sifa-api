@@ -1,30 +1,21 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { extractPdsHost, mapPdsHostToProvider, resolvePdsHost } from '../../src/lib/pds-provider.js';
+import { extractPdsHostFromEndpoint, mapPdsHostToProvider, resolvePdsHost } from '../../src/lib/pds-provider.js';
 
-describe('extractPdsHost', () => {
-  it('extracts hostname from #atproto_pds service entry', () => {
-    const doc = {
-      service: [
-        { id: '#atproto_pds', serviceEndpoint: 'https://morel.us-east.host.bsky.network' },
-      ],
-    };
-    expect(extractPdsHost(doc)).toBe('morel.us-east.host.bsky.network');
+describe('extractPdsHostFromEndpoint', () => {
+  it('extracts hostname from a valid PDS endpoint URL', () => {
+    expect(extractPdsHostFromEndpoint('https://morel.us-east.host.bsky.network')).toBe('morel.us-east.host.bsky.network');
   });
 
-  it('returns null when no #atproto_pds service exists', () => {
-    const doc = { service: [{ id: '#atproto_labeler', serviceEndpoint: 'https://example.com' }] };
-    expect(extractPdsHost(doc)).toBeNull();
+  it('extracts hostname from URL with path', () => {
+    expect(extractPdsHostFromEndpoint('https://pds.example.com/xrpc')).toBe('pds.example.com');
   });
 
-  it('returns null when service array is missing', () => {
-    expect(extractPdsHost({})).toBeNull();
+  it('returns null for invalid URL', () => {
+    expect(extractPdsHostFromEndpoint('not-a-url')).toBeNull();
   });
 
-  it('returns null for invalid serviceEndpoint URL', () => {
-    const doc = {
-      service: [{ id: '#atproto_pds', serviceEndpoint: 'not-a-url' }],
-    };
-    expect(extractPdsHost(doc)).toBeNull();
+  it('returns null for empty string', () => {
+    expect(extractPdsHostFromEndpoint('')).toBeNull();
   });
 });
 
@@ -67,8 +58,9 @@ describe('resolvePdsHost', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(
         JSON.stringify({
+          id: 'did:plc:abc123',
           service: [
-            { id: '#atproto_pds', serviceEndpoint: 'https://morel.us-east.host.bsky.network' },
+            { id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'https://morel.us-east.host.bsky.network' },
           ],
         }),
         { status: 200 },
@@ -87,8 +79,9 @@ describe('resolvePdsHost', () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(
         JSON.stringify({
+          id: 'did:web:example.com',
           service: [
-            { id: '#atproto_pds', serviceEndpoint: 'https://pds.example.com' },
+            { id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'https://pds.example.com' },
           ],
         }),
         { status: 200 },
@@ -103,12 +96,42 @@ describe('resolvePdsHost', () => {
     );
   });
 
+  it('resolves did:web with path segments', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: 'did:web:example.com:users:alice',
+          service: [
+            { id: '#atproto_pds', type: 'AtprotoPersonalDataServer', serviceEndpoint: 'https://pds.example.com' },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await resolvePdsHost('did:web:example.com:users:alice');
+    expect(result).toBe('pds.example.com');
+    expect(fetch).toHaveBeenCalledWith(
+      'https://example.com/users/alice/did.json',
+      expect.objectContaining({ headers: { Accept: 'application/json' } }),
+    );
+  });
+
   it('returns null when plc.directory returns 404', async () => {
     vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
       new Response(null, { status: 404 }),
     );
 
     const result = await resolvePdsHost('did:plc:notfound');
+    expect(result).toBeNull();
+  });
+
+  it('returns null for invalid DID document', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(JSON.stringify({ notADidDoc: true }), { status: 200 }),
+    );
+
+    const result = await resolvePdsHost('did:plc:invalid');
     expect(result).toBeNull();
   });
 

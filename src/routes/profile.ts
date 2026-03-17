@@ -187,6 +187,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         connectionsCountResult,
         inviteCountResult,
         viewerRelationship,
+        resolvedPdsHost,
       ] = await Promise.all([
         db
           .select({ value: count() })
@@ -201,6 +202,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         viewerDid && viewerDid !== profile.did
           ? checkViewerRelationship(db, viewerDid, profile.did)
           : Promise.resolve(undefined),
+        profile.pdsHost ? Promise.resolve(null) : resolvePdsHost(profile.did),
       ]);
 
       const followersCount = followersResult[0]?.value ?? 0;
@@ -227,20 +229,17 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         linksByPosition.set(link.positionRkey, posList);
       }
 
-      // Resolve PDS host: use cached value or resolve from DID document
-      let pdsHost = profile.pdsHost;
-      if (!pdsHost) {
-        pdsHost = await resolvePdsHost(profile.did);
-        if (pdsHost) {
-          // Cache for future requests (fire-and-forget)
-          void db
-            .update(profiles)
-            .set({ pdsHost })
-            .where(eq(profiles.did, profile.did))
-            .catch((err: unknown) => {
-              request.log.warn({ err, did: profile.did }, 'Failed to cache pdsHost');
-            });
-        }
+      // Use cached PDS host or the result resolved in parallel above
+      const pdsHost = profile.pdsHost ?? resolvedPdsHost;
+      if (!profile.pdsHost && pdsHost) {
+        // Cache for future requests (fire-and-forget)
+        void db
+          .update(profiles)
+          .set({ pdsHost })
+          .where(eq(profiles.did, profile.did))
+          .catch((err: unknown) => {
+            request.log.warn({ err, did: profile.did }, 'Failed to cache pdsHost');
+          });
       }
 
       // Find primary external account for website display

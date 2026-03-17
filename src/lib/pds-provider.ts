@@ -1,6 +1,7 @@
-import pino from 'pino';
+import { isValidDidDoc, getPdsEndpoint } from '@atproto/common-web';
+import { logger as rootLogger } from '../logger.js';
 
-const logger = pino({ name: 'pds-provider' });
+const logger = rootLogger.child({ module: 'pds-provider' });
 
 export interface PdsProviderInfo {
   name: string;
@@ -25,28 +26,31 @@ export function mapPdsHostToProvider(host: string): PdsProviderInfo | null {
   return null;
 }
 
-export function extractPdsHost(didDoc: { service?: { id: string; serviceEndpoint: string }[] }): string | null {
-  const pdsService = didDoc.service?.find(
-    (s) => s.id === '#atproto_pds',
-  );
-  if (!pdsService?.serviceEndpoint) return null;
+export function extractPdsHostFromEndpoint(endpoint: string): string | null {
   try {
-    return new URL(pdsService.serviceEndpoint).hostname;
+    return new URL(endpoint).hostname;
   } catch {
     return null;
   }
 }
 
+async function fetchDidDoc(url: string): Promise<string | null> {
+  const res = await fetch(url, {
+    signal: AbortSignal.timeout(3000),
+    headers: { Accept: 'application/json' },
+  });
+  if (!res.ok) return null;
+  const doc: unknown = await res.json();
+  if (!isValidDidDoc(doc)) return null;
+  const endpoint = getPdsEndpoint(doc);
+  if (!endpoint) return null;
+  return extractPdsHostFromEndpoint(endpoint);
+}
+
 export async function resolvePdsHost(did: string): Promise<string | null> {
   if (did.startsWith('did:plc:')) {
     try {
-      const res = await fetch(`https://plc.directory/${encodeURIComponent(did)}`, {
-        signal: AbortSignal.timeout(3000),
-        headers: { Accept: 'application/json' },
-      });
-      if (!res.ok) return null;
-      const doc = await res.json() as { service?: { id: string; serviceEndpoint: string }[] };
-      return extractPdsHost(doc);
+      return await fetchDidDoc(`https://plc.directory/${encodeURIComponent(did)}`);
     } catch (err) {
       logger.warn({ did, err }, 'Failed to resolve DID document from plc.directory');
       return null;
@@ -54,15 +58,14 @@ export async function resolvePdsHost(did: string): Promise<string | null> {
   }
 
   if (did.startsWith('did:web:')) {
-    const host = did.slice('did:web:'.length).replace(/%3A/g, ':');
     try {
-      const res = await fetch(`https://${host}/.well-known/did.json`, {
-        signal: AbortSignal.timeout(3000),
-        headers: { Accept: 'application/json' },
-      });
-      if (!res.ok) return null;
-      const doc = await res.json() as { service?: { id: string; serviceEndpoint: string }[] };
-      return extractPdsHost(doc);
+      const suffix = did.slice('did:web:'.length);
+      const [encodedHost = '', ...pathParts] = suffix.split(':');
+      const host = decodeURIComponent(encodedHost);
+      const path = pathParts.length > 0
+        ? pathParts.map(decodeURIComponent).join('/') + '/did.json'
+        : '.well-known/did.json';
+      return await fetchDidDoc(`https://${host}/${path}`);
     } catch (err) {
       logger.warn({ did, err }, 'Failed to resolve did:web document');
       return null;
