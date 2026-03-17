@@ -63,6 +63,22 @@ export async function wipeSifaData(
     await writeToUserPds(session, did, batch);
   }
 
-  await db.delete(profiles).where(eq(profiles.did, did));
+  // Update instead of delete: preserve createdAt (join date), langs, headlineOverride,
+  // aboutOverride, handle, displayName, avatarUrl, and pdsHost -- only null profile content.
+  await db
+    .update(profiles)
+    .set({
+      headline: null,
+      about: null,
+      industry: null,
+      locationCountry: null,
+      locationRegion: null,
+      locationCity: null,
+      countryCode: null,
+      openTo: null,
+      preferredWorkplace: null,
+      updatedAt: new Date(),
+    })
+    .where(eq(profiles.did, did));
   await db.delete(externalAccountVerifications).where(eq(externalAccountVerifications.did, did));
 }
