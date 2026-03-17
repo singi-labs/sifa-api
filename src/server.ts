@@ -104,7 +104,7 @@ export async function buildServer(config: Env) {
   registerWellKnownRoutes(app, db, valkey, config.SIFA_DID);
   registerOAuthMetadata(app, config);
   registerOAuthRoutes(app, db, oauthClient);
-  registerProfileRoutes(app, db);
+  registerProfileRoutes(app, db, valkey);
   registerProfileWriteRoutes(app, db, oauthClient);
   registerImportRoutes(app, db, oauthClient);
   registerFollowRoutes(app, db, oauthClient);

@@ -1,7 +1,10 @@
-import type { FastifyInstance } from 'fastify';
+import type { FastifyInstance, FastifyBaseLogger } from 'fastify';
 import { eq, and, count, sql } from 'drizzle-orm';
 import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
+import type { ValkeyClient } from '../cache/index.js';
+
+const publicBskyAgent = new Agent('https://public.api.bsky.app');
 import {
   profiles,
   positions,
@@ -65,7 +68,51 @@ export async function checkViewerRelationship(db: Database, viewerDid: string, p
   return { isFollowing, isConnection: isMutual };
 }
 
-export function registerProfileRoutes(app: FastifyInstance, db: Database) {
+const BSKY_FOLLOWERS_TTL = 3600; // 1 hour
+
+async function fetchAtprotoFollowersCount(
+  did: string,
+  valkey: ValkeyClient | null,
+  log: FastifyBaseLogger,
+): Promise<number | null> {
+  const cacheKey = `bsky:followers:${did}`;
+
+  if (valkey) {
+    try {
+      const cached = await valkey.get(cacheKey);
+      if (cached !== null) {
+        const parsed = parseInt(cached, 10);
+        if (!Number.isNaN(parsed)) return parsed;
+      }
+    } catch (err) {
+      log.warn({ err, cacheKey }, 'valkey.get failed for bsky followers; proceeding to origin');
+    }
+  }
+
+  try {
+    const res = await publicBskyAgent.getProfile(
+      { actor: did },
+      { signal: AbortSignal.timeout(3000) },
+    );
+    const raw = res.data.followersCount;
+    const followers = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
+
+    if (valkey) {
+      try {
+        await valkey.set(cacheKey, String(followers), 'EX', BSKY_FOLLOWERS_TTL);
+      } catch (err) {
+        log.warn({ err, cacheKey }, 'valkey.set failed for bsky followers; result not cached');
+      }
+    }
+
+    return followers;
+  } catch (err) {
+    log.warn({ err, did }, 'fetchAtprotoFollowersCount: Bluesky API error');
+    return null;
+  }
+}
+
+export function registerProfileRoutes(app: FastifyInstance, db: Database, valkey: ValkeyClient | null = null) {
   app.get<{ Params: { handleOrDid: string } }>(
     '/api/profile/:handleOrDid',
     async (request, reply) => {
@@ -81,11 +128,24 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
       if (!profile) {
         // Fall back to public Bluesky API for ATproto users without Sifa-specific data
         try {
-          const publicAgent = new Agent('https://public.api.bsky.app');
-          const bskyProfile = await publicAgent.getProfile(
+          const bskyProfile = await publicBskyAgent.getProfile(
             { actor: handleOrDid },
             { signal: AbortSignal.timeout(3000) },
           );
+
+          const raw = bskyProfile.data.followersCount;
+          const bskyFollowers = typeof raw === 'number' && Number.isFinite(raw) ? raw : 0;
+
+          // Cache the follower count for subsequent requests
+          if (valkey && bskyFollowers > 0) {
+            const cacheKey = `bsky:followers:${bskyProfile.data.did}`;
+            try {
+              await valkey.set(cacheKey, String(bskyFollowers), 'EX', BSKY_FOLLOWERS_TTL);
+            } catch (err) {
+              request.log.warn({ err }, 'valkey.set failed for unclaimed bsky followers');
+            }
+          }
+
           const [inviteCountResult, pdsHost] = await Promise.all([
             db
               .select({ value: count() })
@@ -132,6 +192,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
             followersCount: 0,
             followingCount: 0,
             connectionsCount: 0,
+            atprotoFollowersCount: bskyFollowers,
             inviteCount: inviteCountResult[0]?.value ?? 0,
             pdsProvider: pdsHost ? mapPdsHostToProvider(pdsHost) : null,
             claimed: false,
@@ -188,6 +249,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         inviteCountResult,
         viewerRelationship,
         resolvedPdsHost,
+        atprotoFollowersCount,
       ] = await Promise.all([
         db
           .select({ value: count() })
@@ -203,6 +265,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
           ? checkViewerRelationship(db, viewerDid, profile.did)
           : Promise.resolve(undefined),
         profile.pdsHost ? Promise.resolve(null) : resolvePdsHost(profile.did),
+        fetchAtprotoFollowersCount(profile.did, valkey, request.log),
       ]);
 
       const followersCount = followersResult[0]?.value ?? 0;
@@ -379,6 +442,7 @@ export function registerProfileRoutes(app: FastifyInstance, db: Database) {
         followersCount,
         followingCount,
         connectionsCount: connectionsCountResult,
+        atprotoFollowersCount: atprotoFollowersCount ?? 0,
         inviteCount: inviteCountResult[0]?.value ?? 0,
         pdsProvider: pdsHost ? mapPdsHostToProvider(pdsHost) : null,
         claimed: true,
