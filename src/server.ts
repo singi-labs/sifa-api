@@ -70,7 +70,22 @@ export async function buildServer(config: Env) {
   const valkey = config.NODE_ENV !== 'test' ? createValkey(config.VALKEY_URL) : null;
   if (valkey) await valkey.connect();
 
-  await app.register(helmet);
+  if (config.GLITCHTIP_DSN) {
+    const dsnUrl = new URL(config.GLITCHTIP_DSN);
+    const key = dsnUrl.username;
+    const projectId = dsnUrl.pathname.replace('/', '');
+    const reportUri = `${dsnUrl.protocol}//${dsnUrl.host}/api/${projectId}/security/?glitchtip_key=${key}`;
+    await app.register(helmet, {
+      contentSecurityPolicy: {
+        directives: {
+          'default-src': ["'self'"],
+          'report-uri': [reportUri],
+        },
+      },
+    });
+  } else {
+    await app.register(helmet);
+  }
   await app.register(cors, { origin: config.PUBLIC_URL, credentials: true });
   await app.register(cookie);
   await app.register(rateLimit, {
