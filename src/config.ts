@@ -12,6 +12,8 @@ const envSchema = z.object({
   GLITCHTIP_DSN: z.string().url().optional(),
   GEONAMES_USERNAME: z.string().default('gxjansen'),
   ADMIN_DIDS: z.string().optional(),
+  SIFA_BOT_IDENTIFIER: z.string().optional(),
+  SIFA_BOT_APP_PASSWORD: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
