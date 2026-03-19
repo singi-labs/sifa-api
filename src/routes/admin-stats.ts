@@ -25,6 +25,7 @@ const querySchema = z.object({
 
 const latestSignupsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
+  offset: z.coerce.number().int().min(0).default(0),
   filter: z.enum(['all', 'no-import']).default('all'),
 });
 
@@ -141,8 +142,8 @@ export function registerAdminStatsRoutes(
         return reply.status(400).send({ error: 'Invalid query', details: parsed.error.format() });
       }
 
-      const { limit, filter } = parsed.data;
-      const cacheKey = `admin:stats:latest-signups:${filter}:${limit}`;
+      const { limit, offset, filter } = parsed.data;
+      const cacheKey = `admin:stats:latest-signups:${filter}:${limit}:${offset}`;
 
       if (valkey) {
         const cached = await valkey.get(cacheKey);
@@ -224,20 +225,38 @@ export function registerAdminStatsRoutes(
         .leftJoin(certCountSq, eq(profiles.did, certCountSq.did))
         .orderBy(desc(profiles.createdAt))
         .limit(limit)
+        .offset(offset)
         .$dynamic();
 
-      if (filter === 'no-import') {
-        // No LinkedIn import AND profile completion <= 50% (3 or fewer of 6 signals filled)
-        query = query.where(
-          sql`${importCountSq.cnt} IS NULL AND (
+      const noImportFilter = sql`${importCountSq.cnt} IS NULL AND (
             CASE WHEN ${profiles.headline} IS NOT NULL AND ${profiles.headline} != '' THEN 1 ELSE 0 END +
             CASE WHEN ${profiles.about} IS NOT NULL AND ${profiles.about} != '' THEN 1 ELSE 0 END +
             CASE WHEN ${posCountSq.cnt} IS NOT NULL THEN 1 ELSE 0 END +
             CASE WHEN ${eduCountSq.cnt} IS NOT NULL THEN 1 ELSE 0 END +
             CASE WHEN ${skillCountSq.cnt} IS NOT NULL THEN 1 ELSE 0 END +
             CASE WHEN ${certCountSq.cnt} IS NOT NULL THEN 1 ELSE 0 END
-          ) <= 3`,
-        );
+          ) <= 3`;
+
+      if (filter === 'no-import') {
+        query = query.where(noImportFilter);
+      }
+
+      // Total count for pagination
+      let totalCount: number;
+      if (filter === 'no-import') {
+        const [countResult] = await db
+          .select({ value: count() })
+          .from(profiles)
+          .leftJoin(importCountSq, eq(profiles.did, importCountSq.did))
+          .leftJoin(posCountSq, eq(profiles.did, posCountSq.did))
+          .leftJoin(eduCountSq, eq(profiles.did, eduCountSq.did))
+          .leftJoin(skillCountSq, eq(profiles.did, skillCountSq.did))
+          .leftJoin(certCountSq, eq(profiles.did, certCountSq.did))
+          .where(noImportFilter);
+        totalCount = countResult?.value ?? 0;
+      } else {
+        const [countResult] = await db.select({ value: count() }).from(profiles);
+        totalCount = countResult?.value ?? 0;
       }
 
       const rows = await query;
@@ -259,7 +278,7 @@ export function registerAdminStatsRoutes(
         },
       }));
 
-      const response = { users };
+      const response = { users, total: totalCount };
 
       if (valkey) {
         await valkey.setex(cacheKey, CACHE_TTL, JSON.stringify(response));
