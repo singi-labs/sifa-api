@@ -1,9 +1,9 @@
 import type { FastifyRequest, FastifyReply } from 'fastify';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import type { OAuthSession } from '@atproto/oauth-client';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, sql } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
-import { sessions } from '../db/schema/index.js';
+import { sessions, profiles } from '../db/schema/index.js';
 import './types.js';
 
 /**
@@ -57,6 +57,16 @@ export function createAuthMiddleware(oauthClient: NodeOAuthClient | null, db: Da
       const session = await oauthClient.restore(did);
       request.oauthSession = session;
       request.did = session.did;
+
+      // Update lastActiveAt at most once per hour (fire-and-forget)
+      const oneHourAgo = new Date(Date.now() - 3600_000);
+      db.update(profiles)
+        .set({ lastActiveAt: new Date() })
+        .where(
+          sql`${profiles.did} = ${did} AND (${profiles.lastActiveAt} IS NULL OR ${profiles.lastActiveAt} < ${oneHourAgo})`,
+        )
+        .then(() => {})
+        .catch(() => {});
     } catch {
       reply.clearCookie('session', { path: '/' });
       return reply.status(401).send({ error: 'SessionExpired', message: 'Please sign in again' });
