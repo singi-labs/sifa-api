@@ -1,4 +1,4 @@
-import { count, isNotNull } from 'drizzle-orm';
+import { and, count, isNotNull, ne, sql } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
 import type { Database } from '../db/index.js';
 import type { ValkeyClient } from '../cache/index.js';
@@ -96,7 +96,9 @@ export function registerStatsRoutes(
         const rows = await db
           .select({ avatarUrl: profiles.avatarUrl })
           .from(profiles)
-          .where(isNotNull(profiles.avatarUrl));
+          .where(and(isNotNull(profiles.avatarUrl), ne(profiles.avatarUrl, '')))
+          .orderBy(sql`random()`)
+          .limit(30);
         avatars = rows.map((r) => r.avatarUrl).filter((url): url is string => url !== null);
         await valkey.setex(AVATARS_KEY, AVATARS_TTL, JSON.stringify(avatars));
       }
@@ -104,7 +106,9 @@ export function registerStatsRoutes(
       const rows = await db
         .select({ avatarUrl: profiles.avatarUrl })
         .from(profiles)
-        .where(isNotNull(profiles.avatarUrl));
+        .where(and(isNotNull(profiles.avatarUrl), ne(profiles.avatarUrl, '')))
+        .orderBy(sql`random()`)
+        .limit(30);
       avatars = rows.map((r) => r.avatarUrl).filter((url): url is string => url !== null);
     }
 
