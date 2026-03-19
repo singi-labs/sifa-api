@@ -5,7 +5,7 @@ import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import type { Database } from '../db/index.js';
 import type { ValkeyClient } from '../cache/index.js';
 import type { Env } from '../config.js';
-import { profiles } from '../db/schema/index.js';
+import { profiles, linkedinImports } from '../db/schema/index.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
 import { createAdminMiddleware } from '../middleware/admin.js';
 
@@ -163,6 +163,132 @@ export function registerAdminStatsRoutes(
       }));
 
       const response = { users };
+
+      if (valkey) {
+        await valkey.setex(cacheKey, CACHE_TTL, JSON.stringify(response));
+      }
+
+      return reply.send(response);
+    },
+  );
+
+  app.get(
+    '/api/admin/stats/active-users',
+    { preHandler: [requireAuth, requireAdmin] },
+    async (request, reply) => {
+      const parsed = querySchema.safeParse(request.query);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'Invalid query', details: parsed.error.format() });
+      }
+
+      const days = Number(parsed.data.days);
+      const cacheKey = `admin:stats:active-users:${days}`;
+
+      if (valkey) {
+        const cached = await valkey.get(cacheKey);
+        if (cached !== null) {
+          return reply.send(JSON.parse(cached));
+        }
+      }
+
+      // DAU: count distinct users active per day
+      const dauDays = days > 0 ? days : 90;
+      const dauRows = await db
+        .select({
+          date: sql<string>`DATE(${profiles.lastActiveAt})`.as('date'),
+          count: count().as('count'),
+        })
+        .from(profiles)
+        .where(
+          sql`${profiles.lastActiveAt} IS NOT NULL AND ${profiles.lastActiveAt} >= NOW() - INTERVAL '${sql.raw(String(dauDays))} days'`,
+        )
+        .groupBy(sql`DATE(${profiles.lastActiveAt})`)
+        .orderBy(sql`DATE(${profiles.lastActiveAt})`);
+
+      const daily = dauRows.map((r) => ({ date: String(r.date), count: r.count }));
+
+      // MAU: count distinct users active per month (last 12 months max)
+      const mauRows = await db
+        .select({
+          month: sql<string>`TO_CHAR(${profiles.lastActiveAt}, 'YYYY-MM')`.as('month'),
+          count: count().as('count'),
+        })
+        .from(profiles)
+        .where(
+          sql`${profiles.lastActiveAt} IS NOT NULL AND ${profiles.lastActiveAt} >= NOW() - INTERVAL '12 months'`,
+        )
+        .groupBy(sql`TO_CHAR(${profiles.lastActiveAt}, 'YYYY-MM')`)
+        .orderBy(sql`TO_CHAR(${profiles.lastActiveAt}, 'YYYY-MM')`);
+
+      const monthly = mauRows.map((r) => ({ month: String(r.month), count: r.count }));
+
+      const response = { daily, monthly };
+
+      if (valkey) {
+        await valkey.setex(cacheKey, CACHE_TTL, JSON.stringify(response));
+      }
+
+      return reply.send(response);
+    },
+  );
+
+  app.get(
+    '/api/admin/stats/linkedin-imports',
+    { preHandler: [requireAuth, requireAdmin] },
+    async (request, reply) => {
+      const parsed = querySchema.safeParse(request.query);
+      if (!parsed.success) {
+        return reply.status(400).send({ error: 'Invalid query', details: parsed.error.format() });
+      }
+
+      const days = Number(parsed.data.days);
+      const cacheKey = `admin:stats:linkedin-imports:${days}`;
+
+      if (valkey) {
+        const cached = await valkey.get(cacheKey);
+        if (cached !== null) {
+          return reply.send(JSON.parse(cached));
+        }
+      }
+
+      const importDays = days > 0 ? days : 90;
+      const rows = await db
+        .select({
+          date: sql<string>`DATE(${linkedinImports.createdAt})`.as('date'),
+          successCount: sql<number>`COUNT(*) FILTER (WHERE ${linkedinImports.success} = true)`.as(
+            'success_count',
+          ),
+          failureCount: sql<number>`COUNT(*) FILTER (WHERE ${linkedinImports.success} = false)`.as(
+            'failure_count',
+          ),
+          totalItems: sql<number>`COALESCE(SUM(
+            ${linkedinImports.positionCount} + ${linkedinImports.educationCount} +
+            ${linkedinImports.skillCount} + ${linkedinImports.certificationCount} +
+            ${linkedinImports.projectCount} + ${linkedinImports.volunteeringCount} +
+            ${linkedinImports.publicationCount} + ${linkedinImports.courseCount} +
+            ${linkedinImports.honorCount} + ${linkedinImports.languageCount}
+          ), 0)`.as('total_items'),
+        })
+        .from(linkedinImports)
+        .where(
+          sql`${linkedinImports.createdAt} >= NOW() - INTERVAL '${sql.raw(String(importDays))} days'`,
+        )
+        .groupBy(sql`DATE(${linkedinImports.createdAt})`)
+        .orderBy(sql`DATE(${linkedinImports.createdAt})`);
+
+      const daily = rows.map((r) => ({
+        date: String(r.date),
+        successCount: Number(r.successCount),
+        failureCount: Number(r.failureCount),
+        totalItems: Number(r.totalItems),
+      }));
+
+      const totalImports = daily.reduce((s, d) => s + d.successCount + d.failureCount, 0);
+      const totalSuccess = daily.reduce((s, d) => s + d.successCount, 0);
+      const totalItems = daily.reduce((s, d) => s + d.totalItems, 0);
+      const successRate = totalImports > 0 ? Math.round((totalSuccess / totalImports) * 100) : 0;
+
+      const response = { daily, summary: { totalImports, totalSuccess, totalItems, successRate } };
 
       if (valkey) {
         await valkey.setex(cacheKey, CACHE_TTL, JSON.stringify(response));
