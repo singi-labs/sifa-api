@@ -1,11 +1,18 @@
-import { count, desc, sql, gte } from 'drizzle-orm';
+import { count, desc, sql, gte, eq } from 'drizzle-orm';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import type { Database } from '../db/index.js';
 import type { ValkeyClient } from '../cache/index.js';
 import type { Env } from '../config.js';
-import { profiles, linkedinImports } from '../db/schema/index.js';
+import {
+  profiles,
+  linkedinImports,
+  positions,
+  education,
+  skills,
+  certifications,
+} from '../db/schema/index.js';
 import { mapPdsHostToProvider } from '../lib/pds-provider.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
 import { createAdminMiddleware } from '../middleware/admin.js';
@@ -18,6 +25,7 @@ const querySchema = z.object({
 
 const latestSignupsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
+  filter: z.enum(['all', 'no-import']).default('all'),
 });
 
 interface SignupRow {
@@ -133,8 +141,8 @@ export function registerAdminStatsRoutes(
         return reply.status(400).send({ error: 'Invalid query', details: parsed.error.format() });
       }
 
-      const { limit } = parsed.data;
-      const cacheKey = `admin:stats:latest-signups:${limit}`;
+      const { limit, filter } = parsed.data;
+      const cacheKey = `admin:stats:latest-signups:${filter}:${limit}`;
 
       if (valkey) {
         const cached = await valkey.get(cacheKey);
@@ -143,17 +151,86 @@ export function registerAdminStatsRoutes(
         }
       }
 
-      const rows = await db
+      // Subquery: count of successful LinkedIn imports per user
+      const importCountSq = db
+        .select({
+          did: linkedinImports.did,
+          cnt: count().as('import_cnt'),
+        })
+        .from(linkedinImports)
+        .where(eq(linkedinImports.success, true))
+        .groupBy(linkedinImports.did)
+        .as('import_counts');
+
+      // Subqueries for profile completion counts
+      const posCountSq = db
+        .select({
+          did: positions.did,
+          cnt: count().as('pos_cnt'),
+        })
+        .from(positions)
+        .groupBy(positions.did)
+        .as('pos_counts');
+
+      const eduCountSq = db
+        .select({
+          did: education.did,
+          cnt: count().as('edu_cnt'),
+        })
+        .from(education)
+        .groupBy(education.did)
+        .as('edu_counts');
+
+      const skillCountSq = db
+        .select({
+          did: skills.did,
+          cnt: count().as('skill_cnt'),
+        })
+        .from(skills)
+        .groupBy(skills.did)
+        .as('skill_counts');
+
+      const certCountSq = db
+        .select({
+          did: certifications.did,
+          cnt: count().as('cert_cnt'),
+        })
+        .from(certifications)
+        .groupBy(certifications.did)
+        .as('cert_counts');
+
+      let query = db
         .select({
           did: profiles.did,
           handle: profiles.handle,
           displayName: profiles.displayName,
           avatarUrl: profiles.avatarUrl,
+          headline: profiles.headline,
+          about: profiles.about,
           createdAt: profiles.createdAt,
+          importCount: sql<number>`COALESCE(${importCountSq.cnt}, 0)`.as('import_count'),
+          positionCount: sql<number>`COALESCE(${posCountSq.cnt}, 0)`.as('position_count'),
+          educationCount: sql<number>`COALESCE(${eduCountSq.cnt}, 0)`.as('education_count'),
+          skillCount: sql<number>`COALESCE(${skillCountSq.cnt}, 0)`.as('skill_count'),
+          certificationCount: sql<number>`COALESCE(${certCountSq.cnt}, 0)`.as(
+            'certification_count',
+          ),
         })
         .from(profiles)
+        .leftJoin(importCountSq, eq(profiles.did, importCountSq.did))
+        .leftJoin(posCountSq, eq(profiles.did, posCountSq.did))
+        .leftJoin(eduCountSq, eq(profiles.did, eduCountSq.did))
+        .leftJoin(skillCountSq, eq(profiles.did, skillCountSq.did))
+        .leftJoin(certCountSq, eq(profiles.did, certCountSq.did))
         .orderBy(desc(profiles.createdAt))
-        .limit(limit);
+        .limit(limit)
+        .$dynamic();
+
+      if (filter === 'no-import') {
+        query = query.where(sql`${importCountSq.cnt} IS NULL`);
+      }
+
+      const rows = await query;
 
       const users = rows.map((r) => ({
         did: r.did,
@@ -161,6 +238,15 @@ export function registerAdminStatsRoutes(
         displayName: r.displayName,
         avatarUrl: r.avatarUrl,
         createdAt: r.createdAt.toISOString(),
+        hasImported: Number(r.importCount) > 0,
+        profileCompletion: {
+          hasHeadline: !!r.headline,
+          hasAbout: !!r.about,
+          positionCount: Number(r.positionCount),
+          educationCount: Number(r.educationCount),
+          skillCount: Number(r.skillCount),
+          certificationCount: Number(r.certificationCount),
+        },
       }));
 
       const response = { users };
