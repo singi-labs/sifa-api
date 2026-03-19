@@ -37,6 +37,7 @@ import {
   courses as coursesTable,
   honors as honorsTable,
   languages as languagesTable,
+  linkedinImports,
 } from '../db/schema/index.js';
 
 const importPayloadSchema = z.object({
@@ -427,6 +428,29 @@ export function registerImportRoutes(
     } catch (err) {
       const detail = err instanceof Error ? err.message : String(err);
       app.log.error({ err, did, writeCount: writes.length }, 'PDS write failed during import');
+
+      // Track failed import
+      db.insert(linkedinImports)
+        .values({
+          did,
+          success: false,
+          positionCount: positions.length,
+          educationCount: education.length,
+          skillCount: skills.length,
+          certificationCount: certifications.length,
+          projectCount: projects.length,
+          volunteeringCount: volunteering.length,
+          publicationCount: publications.length,
+          courseCount: courses.length,
+          honorCount: honors.length,
+          languageCount: languages.length,
+          error: detail,
+        })
+        .then(() => {})
+        .catch((trackErr) =>
+          app.log.warn({ err: trackErr, did }, 'Failed to track LinkedIn import'),
+        );
+
       return reply
         .status(500)
         .send({ error: 'ImportFailed', message: `Failed to write to PDS: ${detail}` });
@@ -802,6 +826,25 @@ export function registerImportRoutes(
         'Your data was saved to your Personal Data Server but could not be cached locally. ' +
         'It will appear on your profile shortly via background sync.';
     }
+
+    // Track import for admin analytics (fire-and-forget)
+    db.insert(linkedinImports)
+      .values({
+        did,
+        success: true,
+        positionCount: positions.length,
+        educationCount: education.length,
+        skillCount: skills.length,
+        certificationCount: certifications.length,
+        projectCount: projects.length,
+        volunteeringCount: volunteering.length,
+        publicationCount: publications.length,
+        courseCount: courses.length,
+        honorCount: honors.length,
+        languageCount: languages.length,
+      })
+      .then(() => {})
+      .catch((err) => app.log.warn({ err, did }, 'Failed to track LinkedIn import'));
 
     return reply.status(200).send({
       imported: {
