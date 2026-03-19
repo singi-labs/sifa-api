@@ -13,6 +13,7 @@
     "lint": "eslint src/ tests/",
     "typecheck": "tsc --noEmit",
     "seed:skills": "tsx scripts/seed-skills.ts",
+    "refresh:pds": "tsx src/scripts/refresh-pds-hosts.ts",
     "services:up": "docker compose -f docker-compose.dev.yml up -d",
     "services:down": "docker compose -f docker-compose.dev.yml down",
     "format": "prettier --write .",
