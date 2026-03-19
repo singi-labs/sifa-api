@@ -41,6 +41,9 @@ import { createCourseIndexer } from './jetstream/indexers/course.js';
 import { createHonorIndexer } from './jetstream/indexers/honor.js';
 import { createLanguageIndexer } from './jetstream/indexers/language.js';
 import { createCursorManager } from './jetstream/cursor.js';
+import { registerFeaturedRoutes } from './routes/featured.js';
+import { startFeaturedProfileJob } from './services/featured-job.js';
+import { createBotAgent } from './services/bluesky-bot.js';
 
 export async function buildServer(config: Env) {
   if (config.GLITCHTIP_DSN) {
@@ -140,6 +143,7 @@ export async function buildServer(config: Env) {
   registerStatsRoutes(app, db, valkey);
   registerAdminStatsRoutes(app, db, valkey, oauthClient, config);
   registerLocationRoutes(app, config.GEONAMES_USERNAME);
+  registerFeaturedRoutes(app, db, valkey);
 
   // Start Jetstream in non-test mode
   if (config.NODE_ENV !== 'test') {
@@ -172,6 +176,15 @@ export async function buildServer(config: Env) {
 
     await jetstream.connect();
     app.addHook('onClose', () => jetstream.disconnect());
+
+    const botAgent = await createBotAgent(
+      config.SIFA_BOT_IDENTIFIER ?? 'sifa.id',
+      config.SIFA_BOT_APP_PASSWORD,
+      app.log,
+    );
+
+    const featuredTimer = startFeaturedProfileJob(db, valkey, botAgent, config.PUBLIC_URL, app.log);
+    app.addHook('onClose', () => clearTimeout(featuredTimer));
   }
 
   return app;
