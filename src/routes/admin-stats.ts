@@ -6,6 +6,7 @@ import type { Database } from '../db/index.js';
 import type { ValkeyClient } from '../cache/index.js';
 import type { Env } from '../config.js';
 import { profiles, linkedinImports } from '../db/schema/index.js';
+import { mapPdsHostToProvider } from '../lib/pds-provider.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
 import { createAdminMiddleware } from '../middleware/admin.js';
 
@@ -254,16 +255,20 @@ export function registerAdminStatsRoutes(
         .where(sql`${profiles.pdsHost} IS NOT NULL`)
         .groupBy(profiles.pdsHost);
 
-      // Group: *.host.bsky.network → "Bluesky", known providers by name, rest → "Self-hosted"
+      // Group using known provider mapping: bluesky, eurosky, etc. → display name; selfhosted → "Self-hosted"
+      const PROVIDER_LABELS: Record<string, string> = {
+        bluesky: 'Bluesky',
+        blacksky: 'Blacksky',
+        eurosky: 'Eurosky',
+        northsky: 'Northsky',
+        'selfhosted-social': 'selfhosted.social',
+        selfhosted: 'Self-hosted',
+      };
       const groups = new Map<string, number>();
       for (const row of rows) {
         const host = row.pdsHost ?? '';
-        let label: string;
-        if (host.endsWith('.host.bsky.network')) {
-          label = 'Bluesky';
-        } else {
-          label = host;
-        }
+        const provider = mapPdsHostToProvider(host);
+        const label = PROVIDER_LABELS[provider.name] ?? provider.name;
         groups.set(label, (groups.get(label) ?? 0) + row.count);
       }
 
