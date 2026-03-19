@@ -1,5 +1,6 @@
 import { eq, and, count } from 'drizzle-orm';
 import type { FastifyInstance } from 'fastify';
+import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
 import type { ValkeyClient } from '../cache/index.js';
 import {
@@ -10,8 +11,11 @@ import {
   connections,
 } from '../db/schema/index.js';
 import { resolveProfileFields } from '../lib/resolve-profile.js';
+import { resolvePdsHost, mapPdsHostToProvider } from '../lib/pds-provider.js';
 import { FEATURED_CACHE_KEY } from '../services/featured-job.js';
 import { getTodayUtc } from '../services/featured-profile.js';
+
+const publicBskyAgent = new Agent('https://public.api.bsky.app');
 
 function secondsUntilMidnightUtc(): number {
   const now = new Date();
@@ -68,27 +72,35 @@ export function registerFeaturedRoutes(
       return reply.status(204).send();
     }
 
-    // Fetch current position and external accounts in parallel
-    const [profilePositions, primaryAccountResult, followersResult] = await Promise.all([
-      db
-        .select()
-        .from(positions)
-        .where(and(eq(positions.did, featured.did), eq(positions.current, true)))
-        .limit(1),
-      db
-        .select()
-        .from(externalAccounts)
-        .where(and(eq(externalAccounts.did, featured.did), eq(externalAccounts.isPrimary, true)))
-        .limit(1),
-      db
-        .select({ value: count() })
-        .from(connections)
-        .where(and(eq(connections.subjectDid, featured.did), eq(connections.source, 'sifa'))),
-    ]);
+    // Fetch current position, external accounts, followers, PDS, and Bluesky followers in parallel
+    const [profilePositions, primaryAccountResult, followersResult, resolvedPdsHost, bskyProfile] =
+      await Promise.all([
+        db
+          .select()
+          .from(positions)
+          .where(and(eq(positions.did, featured.did), eq(positions.current, true)))
+          .limit(1),
+        db
+          .select()
+          .from(externalAccounts)
+          .where(and(eq(externalAccounts.did, featured.did), eq(externalAccounts.isPrimary, true)))
+          .limit(1),
+        db
+          .select({ value: count() })
+          .from(connections)
+          .where(and(eq(connections.subjectDid, featured.did), eq(connections.source, 'sifa'))),
+        profile.pdsHost ? Promise.resolve(null) : resolvePdsHost(profile.did).catch(() => null),
+        publicBskyAgent
+          .getProfile({ actor: featured.did }, { signal: AbortSignal.timeout(3000) })
+          .catch(() => null),
+      ]);
 
     const currentPosition = profilePositions[0] ?? null;
     const primaryAccount = primaryAccountResult[0] ?? null;
     const followersCount = followersResult[0]?.value ?? 0;
+    const pdsHost = profile.pdsHost ?? resolvedPdsHost;
+    const atprotoFollowersCount =
+      typeof bskyProfile?.data.followersCount === 'number' ? bskyProfile.data.followersCount : null;
 
     const resolved = resolveProfileFields(
       { headline: profile.headline, about: profile.about },
@@ -121,6 +133,8 @@ export function registerFeaturedRoutes(
       openTo: profile.openTo,
       preferredWorkplace: profile.preferredWorkplace,
       followersCount,
+      atprotoFollowersCount: atprotoFollowersCount ?? 0,
+      pdsProvider: pdsHost ? mapPdsHostToProvider(pdsHost) : null,
       claimed: true,
       featuredDate: featured.featuredDate,
     };
