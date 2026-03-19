@@ -34,21 +34,29 @@ export function registerSearchRoutes(app: FastifyInstance, db: Database) {
       LIMIT ${limitNum} OFFSET ${offsetNum}
     `);
 
-    const dbProfiles = results.rows.map((row) => {
-      const r = row as Record<string, unknown>;
-      const profile: Record<string, unknown> = {
-        did: r.did,
-        handle: r.handle,
-        headline: r.headline,
-        about: r.about,
-        claimed: true,
-      };
-      if (r.displayName != null) profile.displayName = r.displayName;
-      if (r.avatarUrl != null) profile.avatar = r.avatarUrl;
-      if (r.currentRole != null) profile.currentRole = r.currentRole;
-      if (r.currentCompany != null) profile.currentCompany = r.currentCompany;
-      return profile;
-    });
+    const seen = new Set<string>();
+    const dbProfiles = results.rows
+      .map((row) => {
+        const r = row as Record<string, unknown>;
+        const profile: Record<string, unknown> = {
+          did: r.did,
+          handle: r.handle,
+          headline: r.headline,
+          about: r.about,
+          claimed: true,
+        };
+        if (r.displayName != null) profile.displayName = r.displayName;
+        if (r.avatarUrl != null) profile.avatar = r.avatarUrl;
+        if (r.currentRole != null) profile.currentRole = r.currentRole;
+        if (r.currentCompany != null) profile.currentCompany = r.currentCompany;
+        return profile;
+      })
+      .filter((p) => {
+        const did = p.did as string;
+        if (seen.has(did)) return false;
+        seen.add(did);
+        return true;
+      });
 
     // Try AT Protocol handle resolution as fallback
     try {

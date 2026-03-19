@@ -169,6 +169,35 @@ describe('Search API', () => {
     expect(erlend.avatar).toBeUndefined();
   });
 
+  it('deduplicates profiles when multiple current positions exist', async () => {
+    // Insert a second current position for the same profile
+    await db
+      .insert(positions)
+      .values({
+        did: 'did:plc:search-with-role',
+        rkey: '3searchpos2',
+        companyName: 'Beta Inc',
+        title: 'Advisor',
+        startDate: '2024-01',
+        current: true,
+        createdAt: new Date(),
+      })
+      .onConflictDoNothing();
+
+    const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=TypeScript' });
+    expect(res.statusCode).toBe(200);
+    const body = res.json();
+    const matches = body.profiles.filter(
+      (p: { did: string }) => p.did === 'did:plc:search-with-role',
+    );
+    expect(matches).toHaveLength(1);
+
+    // Cleanup
+    await db.execute(
+      sql`DELETE FROM positions WHERE did = 'did:plc:search-with-role' AND rkey = '3searchpos2'`,
+    );
+  });
+
   it('does not leak rank field in response', async () => {
     const res = await app.inject({ method: 'GET', url: '/api/search/profiles?q=TypeScript' });
     const body = res.json();
