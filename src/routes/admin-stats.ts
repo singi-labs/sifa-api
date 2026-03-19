@@ -227,7 +227,17 @@ export function registerAdminStatsRoutes(
         .$dynamic();
 
       if (filter === 'no-import') {
-        query = query.where(sql`${importCountSq.cnt} IS NULL`);
+        // No LinkedIn import AND profile completion <= 50% (3 or fewer of 6 signals filled)
+        query = query.where(
+          sql`${importCountSq.cnt} IS NULL AND (
+            CASE WHEN ${profiles.headline} IS NOT NULL AND ${profiles.headline} != '' THEN 1 ELSE 0 END +
+            CASE WHEN ${profiles.about} IS NOT NULL AND ${profiles.about} != '' THEN 1 ELSE 0 END +
+            CASE WHEN ${posCountSq.cnt} IS NOT NULL THEN 1 ELSE 0 END +
+            CASE WHEN ${eduCountSq.cnt} IS NOT NULL THEN 1 ELSE 0 END +
+            CASE WHEN ${skillCountSq.cnt} IS NOT NULL THEN 1 ELSE 0 END +
+            CASE WHEN ${certCountSq.cnt} IS NOT NULL THEN 1 ELSE 0 END
+          ) <= 3`,
+        );
       }
 
       const rows = await query;
