@@ -20,3 +20,4 @@ export { canonicalSkills } from './canonical-skills.js';
 export { unresolvedSkills } from './unresolved-skills.js';
 export { skillPositionLinks } from './skill-position-links.js';
 export { linkedinImports } from './linkedin-imports.js';
+export { featuredProfiles } from './featured-profiles.js';

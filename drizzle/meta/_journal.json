@@ -120,6 +120,13 @@
       "when": 1774144800000,
       "tag": "0016_linkedin_imports",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1774231200000,
+      "tag": "0017_featured_profiles",
+      "breakpoints": true
     }
   ]
 }
