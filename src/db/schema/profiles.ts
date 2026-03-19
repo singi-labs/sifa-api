@@ -23,6 +23,7 @@ export const profiles = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
     indexedAt: timestamp('indexed_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+    lastActiveAt: timestamp('last_active_at', { withTimezone: true }),
   },
   (table) => [index('idx_profiles_handle').on(table.handle)],
 );
