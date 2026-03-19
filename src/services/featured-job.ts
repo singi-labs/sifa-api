@@ -9,12 +9,30 @@ import { buildFeaturedPost, postToBluesky } from './featured-poster.js';
 
 export const FEATURED_CACHE_KEY = 'featured:today';
 
+const BLUESKY_POST_HOUR_UTC = 12; // Post at 12:00 UTC (14:00 CET, 05:00 PT)
+
 function msUntilMidnightUtc(): number {
   const now = new Date();
   const tomorrow = new Date(
     Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1),
   );
   return tomorrow.getTime() - now.getTime();
+}
+
+function msUntilPostTimeUtc(): number {
+  const now = new Date();
+  const postTime = new Date(
+    Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), BLUESKY_POST_HOUR_UTC),
+  );
+  // If post time already passed today, schedule for tomorrow
+  if (postTime.getTime() <= now.getTime()) {
+    postTime.setUTCDate(postTime.getUTCDate() + 1);
+  }
+  return postTime.getTime() - now.getTime();
+}
+
+function isPostTimePassed(): boolean {
+  return new Date().getUTCHours() >= BLUESKY_POST_HOUR_UTC;
 }
 
 async function tryPost(
@@ -37,7 +55,7 @@ async function tryPost(
   }
 
   const displayName = profile.displayName ?? profile.handle;
-  const profileUrl = `${publicUrl}/profile/${profile.handle}`;
+  const profileUrl = `${publicUrl}/p/${profile.handle}`;
   const post = buildFeaturedPost({ displayName, handle: profile.handle, did, dateStr, profileUrl });
   const posted = await postToBluesky(botAgent, post, log);
 
@@ -56,13 +74,13 @@ export function startFeaturedProfileJob(
   botAgent: AtpAgent | null,
   publicUrl: string,
   log: FastifyBaseLogger,
-): NodeJS.Timeout {
-  async function run(): Promise<void> {
+): { selectionTimer: NodeJS.Timeout; postTimer: NodeJS.Timeout } {
+  // --- Selection job: runs at midnight UTC, picks the daily profile ---
+  async function runSelection(): Promise<void> {
     try {
       const today = getTodayUtc();
-      log.info({ date: today }, 'Running featured profile job');
+      log.info({ date: today }, 'Running featured profile selection');
 
-      // Check if we already have a row for today
       const [existing] = await db
         .select()
         .from(featuredProfiles)
@@ -70,28 +88,14 @@ export function startFeaturedProfileJob(
         .limit(1);
 
       if (existing) {
-        if (existing.postedAt) {
-          log.info({ date: today }, 'Featured profile already selected and posted for today');
-          return;
-        }
-        // Row exists but not posted — retry posting if bot is available
-        if (botAgent) {
-          log.info(
-            { did: existing.did, date: today },
-            "Retrying Bluesky post for today's featured profile",
-          );
-          await tryPost(db, botAgent, existing.did, today, publicUrl, log);
-        }
+        log.info({ date: today }, 'Featured profile already selected for today');
         return;
       }
 
-      // Select a new featured profile
       const selected = await selectFeaturedProfile(db);
       if (!selected) {
         log.warn('No eligible profiles found for featured profile of the day');
-        if (valkey) {
-          await valkey.del(FEATURED_CACHE_KEY);
-        }
+        if (valkey) await valkey.del(FEATURED_CACHE_KEY);
         return;
       }
 
@@ -106,45 +110,85 @@ export function startFeaturedProfileJob(
         .limit(1);
 
       if (yesterdayRow && yesterdayRow.did === selected.did) {
-        log.warn({ did: selected.did }, 'Selected profile is same as yesterday — skipping');
+        log.warn({ did: selected.did }, 'Selected profile is same as yesterday, skipping');
         return;
       }
 
-      // Insert new featured profile row
       await db.insert(featuredProfiles).values({
         did: selected.did,
         featuredDate: today,
       });
       log.info({ did: selected.did, date: today }, 'Featured profile selected for today');
 
-      // Clear cache so the API endpoint picks up the new selection
-      if (valkey) {
-        await valkey.del(FEATURED_CACHE_KEY);
-      }
-
-      // Post to Bluesky if bot is available
-      if (botAgent) {
-        await tryPost(db, botAgent, selected.did, today, publicUrl, log);
-      }
+      if (valkey) await valkey.del(FEATURED_CACHE_KEY);
     } catch (err) {
-      log.error({ err }, 'Featured profile job failed');
+      log.error({ err }, 'Featured profile selection failed');
     }
   }
 
-  function schedule(): NodeJS.Timeout {
+  // --- Post job: runs at 12:00 UTC, posts to Bluesky ---
+  async function runPost(): Promise<void> {
+    if (!botAgent) return;
+    try {
+      const today = getTodayUtc();
+      const [entry] = await db
+        .select()
+        .from(featuredProfiles)
+        .where(eq(featuredProfiles.featuredDate, today))
+        .limit(1);
+
+      if (!entry) {
+        log.info({ date: today }, 'No featured profile for today, skipping Bluesky post');
+        return;
+      }
+
+      if (entry.postedAt) {
+        log.info({ date: today }, 'Bluesky post already sent for today');
+        return;
+      }
+
+      log.info({ did: entry.did, date: today }, 'Posting featured profile to Bluesky');
+      await tryPost(db, botAgent, entry.did, today, publicUrl, log);
+    } catch (err) {
+      log.error({ err }, 'Featured profile Bluesky post failed');
+    }
+  }
+
+  function scheduleSelection(): NodeJS.Timeout {
     const ms = msUntilMidnightUtc();
     log.info(
       { ms, hours: Math.round((ms / 3600000) * 10) / 10 },
-      'Next featured profile job scheduled',
+      'Next featured profile selection scheduled (midnight UTC)',
     );
     return setTimeout(() => {
-      void run().finally(() => {
-        schedule();
+      void runSelection().finally(() => {
+        scheduleSelection();
       });
     }, ms);
   }
 
-  // Run immediately on startup, then schedule midnight runs
-  void run();
-  return schedule();
+  function schedulePost(): NodeJS.Timeout {
+    const ms = msUntilPostTimeUtc();
+    log.info(
+      { ms, hours: Math.round((ms / 3600000) * 10) / 10, postHourUtc: BLUESKY_POST_HOUR_UTC },
+      'Next Bluesky post scheduled',
+    );
+    return setTimeout(() => {
+      void runPost().finally(() => {
+        schedulePost();
+      });
+    }, ms);
+  }
+
+  // On startup: always run selection (catches restarts that missed midnight)
+  void runSelection();
+  // On startup: run post only if it's past post time and not yet posted
+  if (isPostTimePassed()) {
+    void runPost();
+  }
+
+  return {
+    selectionTimer: scheduleSelection(),
+    postTimer: schedulePost(),
+  };
 }

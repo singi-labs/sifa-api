@@ -183,8 +183,17 @@ export async function buildServer(config: Env) {
       app.log,
     );
 
-    const featuredTimer = startFeaturedProfileJob(db, valkey, botAgent, config.PUBLIC_URL, app.log);
-    app.addHook('onClose', () => clearTimeout(featuredTimer));
+    const featuredTimers = startFeaturedProfileJob(
+      db,
+      valkey,
+      botAgent,
+      config.PUBLIC_URL,
+      app.log,
+    );
+    app.addHook('onClose', () => {
+      clearTimeout(featuredTimers.selectionTimer);
+      clearTimeout(featuredTimers.postTimer);
+    });
   }
 
   return app;
