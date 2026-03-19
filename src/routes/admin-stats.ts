@@ -233,6 +233,55 @@ export function registerAdminStatsRoutes(
   );
 
   app.get(
+    '/api/admin/stats/pds-distribution',
+    { preHandler: [requireAuth, requireAdmin] },
+    async (_request, reply) => {
+      const cacheKey = 'admin:stats:pds-distribution';
+
+      if (valkey) {
+        const cached = await valkey.get(cacheKey);
+        if (cached !== null) {
+          return reply.send(JSON.parse(cached));
+        }
+      }
+
+      const rows = await db
+        .select({
+          pdsHost: profiles.pdsHost,
+          count: count().as('count'),
+        })
+        .from(profiles)
+        .where(sql`${profiles.pdsHost} IS NOT NULL`)
+        .groupBy(profiles.pdsHost);
+
+      // Group: *.host.bsky.network → "Bluesky", known providers by name, rest → "Self-hosted"
+      const groups = new Map<string, number>();
+      for (const row of rows) {
+        const host = row.pdsHost ?? '';
+        let label: string;
+        if (host.endsWith('.host.bsky.network')) {
+          label = 'Bluesky';
+        } else {
+          label = host;
+        }
+        groups.set(label, (groups.get(label) ?? 0) + row.count);
+      }
+
+      const slices = Array.from(groups.entries())
+        .map(([name, value]) => ({ name, value }))
+        .sort((a, b) => b.value - a.value);
+
+      const response = { slices };
+
+      if (valkey) {
+        await valkey.setex(cacheKey, CACHE_TTL, JSON.stringify(response));
+      }
+
+      return reply.send(response);
+    },
+  );
+
+  app.get(
     '/api/admin/stats/linkedin-imports',
     { preHandler: [requireAuth, requireAdmin] },
     async (request, reply) => {
