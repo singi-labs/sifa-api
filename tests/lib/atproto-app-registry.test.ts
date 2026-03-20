@@ -73,6 +73,27 @@ describe('atproto-app-registry', () => {
       expect(result?.id).toBe('smokesignal');
     });
 
+    it('maps community.lexicon.calendar.rsvp to smokesignal via scanCollections', () => {
+      const result = getAppForCollection('community.lexicon.calendar.rsvp');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('smokesignal');
+      expect(result?.matchedPrefix).toBe('community.lexicon.calendar');
+    });
+
+    it('maps events.smokesignal.profile to smokesignal via scanCollections', () => {
+      const result = getAppForCollection('events.smokesignal.profile');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('smokesignal');
+      expect(result?.matchedPrefix).toBe('events.smokesignal');
+    });
+
+    it('maps community.lexicon.calendar.event by prefix to smokesignal', () => {
+      const result = getAppForCollection('community.lexicon.calendar.event');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('smokesignal');
+      expect(result?.matchedPrefix).toBe('community.lexicon.calendar');
+    });
+
     it('maps site.standard.document to standard via scanCollections', () => {
       const result = getAppForCollection('site.standard.document');
       expect(result).toBeDefined();
@@ -124,16 +145,19 @@ describe('atproto-app-registry', () => {
     it('includes cross-app low-signal collections', () => {
       expect(EXCLUDED_COLLECTIONS).toContain('sh.tangled.graph.follow');
       expect(EXCLUDED_COLLECTIONS).toContain('sh.tangled.feed.star');
-      expect(EXCLUDED_COLLECTIONS).toContain('events.smokesignal.calendar.rsvp');
       expect(EXCLUDED_COLLECTIONS).toContain('fyi.unravel.frontpage.vote');
+    });
+
+    it('does not exclude community.lexicon.calendar.rsvp', () => {
+      expect(EXCLUDED_COLLECTIONS).not.toContain('community.lexicon.calendar.rsvp');
     });
 
     it('includes alternativeproto vote', () => {
       expect(EXCLUDED_COLLECTIONS).toContain('net.alternativeproto.vote');
     });
 
-    it('has exactly 11 entries', () => {
-      expect(EXCLUDED_COLLECTIONS).toHaveLength(11);
+    it('has exactly 10 entries', () => {
+      expect(EXCLUDED_COLLECTIONS).toHaveLength(10);
     });
   });
 });
