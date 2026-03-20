@@ -106,10 +106,10 @@ export async function buildServer(config: Env) {
   });
 
   await app.register(fastifyMultipart, {
-    limits: { fileSize: config.UPLOAD_MAX_SIZE_BYTES },
+    limits: { fileSize: config.UPLOAD_MAX_SIZE_BYTES ?? 5_242_880 },
   });
 
-  const uploadDir = resolve(config.UPLOAD_DIR);
+  const uploadDir = resolve(config.UPLOAD_DIR ?? './uploads');
   await app.register(fastifyStatic, {
     root: uploadDir,
     prefix: '/uploads/',
