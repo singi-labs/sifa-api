@@ -42,7 +42,10 @@ interface CompositeCursor {
  * Resolve a handle-or-DID string to a DID.
  * Checks the local profiles table first, then falls back to Bluesky public API.
  */
-async function resolveHandleOrDid(db: Database, handleOrDid: string): Promise<string | null> {
+export async function resolveHandleOrDid(
+  db: Database,
+  handleOrDid: string,
+): Promise<string | null> {
   const isDid = handleOrDid.startsWith('did:');
   const normalized = isDid ? handleOrDid : handleOrDid.toLowerCase();
   const condition = isDid ? eq(profiles.did, normalized) : eq(profiles.handle, normalized);
@@ -65,7 +68,7 @@ async function resolveHandleOrDid(db: Database, handleOrDid: string): Promise<st
 /**
  * Determine which collection to fetch for a given registry entry.
  */
-function getCollectionForApp(entry: AppRegistryEntry): string {
+export function getCollectionForApp(entry: AppRegistryEntry): string {
   if (entry.scanCollections.length > 0) {
     return entry.scanCollections[0] ?? entry.collectionPrefixes[0] ?? '';
   }
@@ -75,7 +78,7 @@ function getCollectionForApp(entry: AppRegistryEntry): string {
 /**
  * Extract createdAt from a record, falling back to current time.
  */
-function extractCreatedAt(record: unknown): string {
+export function extractCreatedAt(record: unknown): string {
   if (
     record !== null &&
     typeof record === 'object' &&
@@ -90,7 +93,7 @@ function extractCreatedAt(record: unknown): string {
 /**
  * Extract rkey from an AT URI (at://did/collection/rkey).
  */
-function extractRkey(uri: string): string {
+export function extractRkey(uri: string): string {
   const parts = uri.split('/');
   return parts[parts.length - 1] ?? '';
 }
