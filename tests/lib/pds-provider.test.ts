@@ -2,6 +2,7 @@ import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   extractPdsHostFromEndpoint,
   mapPdsHostToProvider,
+  resolvePdsEndpoint,
   resolvePdsHost,
 } from '../../src/lib/pds-provider.js';
 
@@ -176,6 +177,60 @@ describe('resolvePdsHost', () => {
 
   it('returns null for unsupported DID methods', async () => {
     const result = await resolvePdsHost('did:key:z6Mkabc');
+    expect(result).toBeNull();
+  });
+});
+
+describe('resolvePdsEndpoint', () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it('returns full PDS endpoint URL for did:plc', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: 'did:plc:abc123',
+          service: [
+            {
+              id: '#atproto_pds',
+              type: 'AtprotoPersonalDataServer',
+              serviceEndpoint: 'https://morel.us-east.host.bsky.network',
+            },
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await resolvePdsEndpoint('did:plc:abc123');
+    expect(result).toBe('https://morel.us-east.host.bsky.network');
+  });
+
+  it('returns null when DID document has no PDS endpoint', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: 'did:plc:nopds',
+          service: [],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const result = await resolvePdsEndpoint('did:plc:nopds');
+    expect(result).toBeNull();
+  });
+
+  it('returns null when fetch fails', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValueOnce(new Error('network error'));
+
+    const result = await resolvePdsEndpoint('did:plc:fail');
+    expect(result).toBeNull();
+  });
+
+  it('returns null for unsupported DID methods', async () => {
+    const result = await resolvePdsEndpoint('did:key:z6Mkabc');
     expect(result).toBeNull();
   });
 });

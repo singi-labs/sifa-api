@@ -27,6 +27,7 @@ import { resolveSessionDid } from '../middleware/auth.js';
 import { isVerifiablePlatform } from '../services/verification.js';
 import { resolveProfileFields } from '../lib/resolve-profile.js';
 import { resolvePdsHost, mapPdsHostToProvider } from '../lib/pds-provider.js';
+import { fetchStandardPublications, mergePublications } from '../services/standard-publications.js';
 import {
   getVisibleAppStats,
   triggerRefreshIfStale,
@@ -402,6 +403,11 @@ export function registerProfileRoutes(
         triggerRefreshIfStale(db, valkey, profile.did, pdsHost);
       }
 
+      // Fetch Standard publications from PDS and merge with Sifa publications
+      const standardPublications = pdsHost
+        ? await fetchStandardPublications(`https://${pdsHost}`, profile.did, valkey, request.log)
+        : [];
+
       // Find primary external account for website display
       const [primaryAccount] = await db
         .select()
@@ -496,14 +502,17 @@ export function registerProfileRoutes(
           startDate: v.startedAt,
           endDate: v.endedAt,
         })),
-        publications: profilePublications.map((p) => ({
-          rkey: p.rkey,
-          title: p.title,
-          publisher: p.publisher,
-          url: p.url,
-          description: p.description,
-          date: p.publishedAt,
-        })),
+        publications: mergePublications(
+          profilePublications.map((p) => ({
+            rkey: p.rkey,
+            title: p.title,
+            publisher: p.publisher,
+            url: p.url,
+            description: p.description,
+            date: p.publishedAt,
+          })),
+          standardPublications,
+        ),
         courses: profileCourses.map((c) => ({
           rkey: c.rkey,
           name: c.name,
