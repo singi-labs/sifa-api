@@ -36,6 +36,30 @@ describe('atproto-app-registry', () => {
       expect(result?.matchedPrefix).toBe('com.whtwnd');
     });
 
+    it('maps fyi.unravel.frontpage.post to frontpage via scanCollections', () => {
+      const result = getAppForCollection('fyi.unravel.frontpage.post');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('frontpage');
+    });
+
+    it('maps social.psky.feed.post to picosky via scanCollections', () => {
+      const result = getAppForCollection('social.psky.feed.post');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('picosky');
+    });
+
+    it('maps link.pastesphere.snippet to pastesphere via scanCollections', () => {
+      const result = getAppForCollection('link.pastesphere.snippet');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('pastesphere');
+    });
+
+    it('maps sh.tangled.repo to tangled via scanCollections', () => {
+      const result = getAppForCollection('sh.tangled.repo');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('tangled');
+    });
+
     it('maps by prefix for unknown sub-collections', () => {
       const result = getAppForCollection('sh.tangled.some.new');
       expect(result).toBeDefined();
@@ -72,8 +96,15 @@ describe('atproto-app-registry', () => {
       expect(EXCLUDED_COLLECTIONS).toContain('app.bsky.graph.listitem');
     });
 
-    it('has exactly 6 entries', () => {
-      expect(EXCLUDED_COLLECTIONS).toHaveLength(6);
+    it('includes cross-app low-signal collections', () => {
+      expect(EXCLUDED_COLLECTIONS).toContain('sh.tangled.graph.follow');
+      expect(EXCLUDED_COLLECTIONS).toContain('sh.tangled.feed.star');
+      expect(EXCLUDED_COLLECTIONS).toContain('events.smokesignal.calendar.rsvp');
+      expect(EXCLUDED_COLLECTIONS).toContain('fyi.unravel.frontpage.vote');
+    });
+
+    it('has exactly 10 entries', () => {
+      expect(EXCLUDED_COLLECTIONS).toHaveLength(10);
     });
   });
 });
