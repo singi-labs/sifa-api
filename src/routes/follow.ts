@@ -156,8 +156,22 @@ export function registerFollowRoutes(
       .orderBy(sql`${connections.createdAt} DESC`)
       .limit(limit + 1);
 
-    const hasMore = rows.length > limit;
-    const items = hasMore ? rows.slice(0, limit) : rows;
+    // Deduplicate by subjectDid, preferring 'sifa' source over others.
+    // A user followed on both Sifa and Bluesky should appear once with source=sifa.
+    const deduped: typeof rows = [];
+    const seen = new Map<string, number>();
+    for (const row of rows) {
+      const idx = seen.get(row.subjectDid);
+      if (idx === undefined) {
+        seen.set(row.subjectDid, deduped.length);
+        deduped.push(row);
+      } else if (row.source === 'sifa' && deduped[idx]?.source !== 'sifa') {
+        deduped[idx] = row;
+      }
+    }
+
+    const hasMore = deduped.length > limit;
+    const items = hasMore ? deduped.slice(0, limit) : deduped;
 
     // Enrich rows without profile data from Bluesky
     const needEnrich = items.filter((r) => !r.handle).map((r) => r.subjectDid);
