@@ -46,7 +46,8 @@ function fillDateGaps<T extends { date: string }>(
     start.setUTCDate(start.getUTCDate() - days);
     startDate = start.toISOString().slice(0, 10);
   } else {
-    startDate = rows.length > 0 ? rows[0]!.date : today;
+    const first = rows[0];
+    startDate = first !== undefined ? first.date : today;
   }
   const endDate = today;
 
