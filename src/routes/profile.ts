@@ -69,6 +69,47 @@ export async function checkViewerRelationship(db: Database, viewerDid: string, p
 }
 
 const BSKY_FOLLOWERS_TTL = 3600; // 1 hour
+const BSKY_PRONOUNS_TTL = 86400; // 24 hours — pronouns change rarely
+
+async function fetchPronouns(
+  did: string,
+  valkey: ValkeyClient | null,
+  log: FastifyBaseLogger,
+): Promise<string | null> {
+  const cacheKey = `bsky:pronouns:${did}`;
+
+  if (valkey) {
+    try {
+      const cached = await valkey.get(cacheKey);
+      if (cached !== null) return cached || null;
+    } catch (err) {
+      log.warn({ err, cacheKey }, 'valkey.get failed for bsky pronouns; proceeding to origin');
+    }
+  }
+
+  try {
+    const res = await publicBskyAgent.com.atproto.repo.getRecord({
+      repo: did,
+      collection: 'app.bsky.actor.profile',
+      rkey: 'self',
+    });
+    const value = res.data.value as Record<string, unknown>;
+    const pronouns = typeof value.pronouns === 'string' && value.pronouns ? value.pronouns : null;
+
+    if (valkey) {
+      try {
+        await valkey.set(cacheKey, pronouns ?? '', 'EX', BSKY_PRONOUNS_TTL);
+      } catch (err) {
+        log.warn({ err, cacheKey }, 'valkey.set failed for bsky pronouns; result not cached');
+      }
+    }
+
+    return pronouns;
+  } catch (err) {
+    log.warn({ err, did }, 'fetchPronouns: failed to fetch app.bsky.actor.profile');
+    return null;
+  }
+}
 
 async function fetchAtprotoFollowersCount(
   did: string,
@@ -150,12 +191,13 @@ export function registerProfileRoutes(
             }
           }
 
-          const [inviteCountResult, pdsHost] = await Promise.all([
+          const [inviteCountResult, pdsHost, pronouns] = await Promise.all([
             db
               .select({ value: count() })
               .from(invites)
               .where(eq(invites.subjectDid, bskyProfile.data.did)),
             resolvePdsHost(bskyProfile.data.did),
+            fetchPronouns(bskyProfile.data.did, valkey, request.log),
           ]);
 
           return reply.send({
@@ -163,6 +205,7 @@ export function registerProfileRoutes(
             handle: bskyProfile.data.handle,
             displayName: bskyProfile.data.displayName,
             avatar: bskyProfile.data.avatar,
+            pronouns,
             headline: null,
             about: bskyProfile.data.description ?? null,
             hasHeadlineOverride: false,
@@ -254,6 +297,7 @@ export function registerProfileRoutes(
         viewerRelationship,
         resolvedPdsHost,
         atprotoFollowersCount,
+        pronouns,
       ] = await Promise.all([
         db
           .select({ value: count() })
@@ -270,6 +314,7 @@ export function registerProfileRoutes(
           : Promise.resolve(undefined),
         profile.pdsHost ? Promise.resolve(null) : resolvePdsHost(profile.did),
         fetchAtprotoFollowersCount(profile.did, valkey, request.log),
+        fetchPronouns(profile.did, valkey, request.log),
       ]);
 
       const followersCount = followersResult[0]?.value ?? 0;
@@ -321,6 +366,7 @@ export function registerProfileRoutes(
         handle: profile.handle,
         displayName: profile.displayName,
         avatar: profile.avatarUrl,
+        pronouns,
         headline: resolved.headline,
         about: resolved.about,
         hasHeadlineOverride: resolved.hasHeadlineOverride,
