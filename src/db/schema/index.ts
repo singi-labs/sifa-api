@@ -21,3 +21,5 @@ export { unresolvedSkills } from './unresolved-skills.js';
 export { skillPositionLinks } from './skill-position-links.js';
 export { linkedinImports } from './linkedin-imports.js';
 export { featuredProfiles } from './featured-profiles.js';
+export { userAppStats } from './user-app-stats.js';
+export { suppressedDids } from './suppressed-dids.js';
