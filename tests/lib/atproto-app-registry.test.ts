@@ -25,28 +25,28 @@ describe('atproto-app-registry', () => {
     it('maps known collection to its app via scanCollections', () => {
       const result = getAppForCollection('app.bsky.feed.post');
       expect(result).toBeDefined();
-      expect(result!.id).toBe('bluesky');
-      expect(result!.matchedPrefix).toBe('app.bsky.feed');
+      expect(result?.id).toBe('bluesky');
+      expect(result?.matchedPrefix).toBe('app.bsky.feed');
     });
 
     it('maps com.whtwnd.blog.entry to whitewind via scanCollections', () => {
       const result = getAppForCollection('com.whtwnd.blog.entry');
       expect(result).toBeDefined();
-      expect(result!.id).toBe('whitewind');
-      expect(result!.matchedPrefix).toBe('com.whtwnd');
+      expect(result?.id).toBe('whitewind');
+      expect(result?.matchedPrefix).toBe('com.whtwnd');
     });
 
     it('maps by prefix for unknown sub-collections', () => {
       const result = getAppForCollection('sh.tangled.some.new');
       expect(result).toBeDefined();
-      expect(result!.id).toBe('tangled');
-      expect(result!.matchedPrefix).toBe('sh.tangled');
+      expect(result?.id).toBe('tangled');
+      expect(result?.matchedPrefix).toBe('sh.tangled');
     });
 
     it('maps events.smokesignal.foo by prefix', () => {
       const result = getAppForCollection('events.smokesignal.foo');
       expect(result).toBeDefined();
-      expect(result!.id).toBe('smokesignal');
+      expect(result?.id).toBe('smokesignal');
     });
 
     it('returns undefined for unknown collections', () => {
@@ -58,7 +58,7 @@ describe('atproto-app-registry', () => {
       // app.bsky.feed.post should match bluesky via scanCollections,
       // not just prefix
       const result = getAppForCollection('app.bsky.feed.post');
-      expect(result!.id).toBe('bluesky');
+      expect(result?.id).toBe('bluesky');
     });
   });
 

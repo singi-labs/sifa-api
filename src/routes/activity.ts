@@ -67,9 +67,9 @@ async function resolveHandleOrDid(db: Database, handleOrDid: string): Promise<st
  */
 function getCollectionForApp(entry: AppRegistryEntry): string {
   if (entry.scanCollections.length > 0) {
-    return entry.scanCollections[0]!;
+    return entry.scanCollections[0] ?? entry.collectionPrefixes[0] ?? '';
   }
-  return entry.collectionPrefixes[0]!;
+  return entry.collectionPrefixes[0] ?? '';
 }
 
 /**

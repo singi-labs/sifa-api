@@ -61,7 +61,10 @@ function makeRegistry(overrides: Partial<AppRegistryEntry>[] = []): AppRegistryE
     },
   ];
   if (overrides.length > 0) {
-    return overrides.map((o, i) => ({ ...defaults[i % defaults.length]!, ...o }));
+    return overrides.map((o, i) => ({
+      ...(defaults[i % defaults.length] as AppRegistryEntry),
+      ...o,
+    }));
   }
   return defaults;
 }
@@ -127,8 +130,8 @@ describe('scanUserApps', () => {
     const bluesky = results.find((r) => r.appId === 'bluesky');
 
     expect(bluesky).toBeDefined();
-    expect(bluesky!.recentCount).toBe(3);
-    expect(bluesky!.isActive).toBe(true);
+    expect(bluesky?.recentCount).toBe(3);
+    expect(bluesky?.isActive).toBe(true);
   });
 
   it('stops pagination when all records fall outside the 90-day window', async () => {
@@ -189,8 +192,8 @@ describe('scanUserApps', () => {
     // Should still return a result for the app, but with zero counts
     const likesApp = results.find((r) => r.appId === 'bluesky-likes');
     expect(likesApp).toBeDefined();
-    expect(likesApp!.recentCount).toBe(0);
-    expect(likesApp!.isActive).toBe(false);
+    expect(likesApp?.recentCount).toBe(0);
+    expect(likesApp?.isActive).toBe(false);
   });
 
   it('does not fail the entire scan when one collection errors', async () => {
@@ -214,12 +217,12 @@ describe('scanUserApps', () => {
     expect(results).toHaveLength(2);
 
     const bluesky = results.find((r) => r.appId === 'bluesky');
-    expect(bluesky!.isActive).toBe(false);
-    expect(bluesky!.recentCount).toBe(0);
+    expect(bluesky?.isActive).toBe(false);
+    expect(bluesky?.recentCount).toBe(0);
 
     const whitewind = results.find((r) => r.appId === 'whitewind');
-    expect(whitewind!.isActive).toBe(true);
-    expect(whitewind!.recentCount).toBe(1);
+    expect(whitewind?.isActive).toBe(true);
+    expect(whitewind?.recentCount).toBe(1);
   });
 
   it('captures the most recent latestRecordAt', async () => {
@@ -249,7 +252,7 @@ describe('scanUserApps', () => {
     const results = await scanUserApps('https://pds.example.com', 'did:plc:test');
     const bluesky = results.find((r) => r.appId === 'bluesky');
 
-    expect(bluesky!.latestRecordAt).toEqual(new Date(recentDate));
+    expect(bluesky?.latestRecordAt).toEqual(new Date(recentDate));
   });
 
   it('uses first collectionPrefix when scanCollections is empty', async () => {

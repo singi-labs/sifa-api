@@ -1,4 +1,4 @@
-import { eq, and, desc, lt, notInArray } from 'drizzle-orm';
+import { eq, and, desc, notInArray } from 'drizzle-orm';
 import type { Database } from '../db/index.js';
 import type { ValkeyClient } from '../cache/index.js';
 import { userAppStats } from '../db/schema/user-app-stats.js';

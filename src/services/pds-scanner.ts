@@ -27,7 +27,7 @@ function getCollectionsForApp(app: {
     app.scanCollections.length > 0
       ? [...app.scanCollections]
       : app.collectionPrefixes.length > 0
-        ? [app.collectionPrefixes[0]!]
+        ? [app.collectionPrefixes[0] ?? ''].filter(Boolean)
         : [];
 
   return collections.filter((c) => !EXCLUDED_COLLECTIONS.includes(c));
@@ -140,7 +140,7 @@ export async function scanUserApps(pdsUrl: string, did: string): Promise<AppScan
       return result.value;
     }
     return {
-      appId: registry[i]!.id,
+      appId: registry[i]?.id ?? 'unknown',
       isActive: false,
       recentCount: 0,
       latestRecordAt: null,

@@ -106,7 +106,8 @@ export function getAppForCollection(
     if (entry.scanCollections.includes(collection)) {
       const matchedPrefix: string =
         entry.collectionPrefixes.find((p) => collection.startsWith(p)) ??
-        entry.collectionPrefixes[0]!;
+        entry.collectionPrefixes[0] ??
+        collection;
       return { ...entry, matchedPrefix };
     }
   }

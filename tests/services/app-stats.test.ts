@@ -132,7 +132,7 @@ describe('app-stats service', () => {
       const result = await getVisibleAppStats(db as never, 'did:plc:test');
 
       expect(result).toEqual(visibleRows);
-      expect(result[0]!.recentCount).toBeGreaterThan(result[1]!.recentCount);
+      expect(result[0]?.recentCount).toBeGreaterThan(result[1]?.recentCount ?? 0);
       expect(db.select).toHaveBeenCalled();
     });
   });
