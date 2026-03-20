@@ -400,7 +400,7 @@ export function registerProfileRoutes(
 
       // Trigger background PDS scan if data is stale (fire-and-forget)
       if (valkey && pdsHost) {
-        triggerRefreshIfStale(db, valkey, profile.did, pdsHost);
+        triggerRefreshIfStale(db, valkey, profile.did, `https://${pdsHost}`);
       }
 
       // Fetch Standard publications from PDS and merge with Sifa publications
