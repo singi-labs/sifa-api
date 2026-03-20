@@ -92,6 +92,11 @@ describe('discoverFeedUrl', () => {
     const result = await discoverFeedUrl('youtube', 'https://example.com/not-youtube');
     expect(result).toBeNull();
   });
+
+  it('rejects spoofed YouTube hostnames', async () => {
+    expect(await discoverFeedUrl('youtube', 'https://evil-youtube.com/channel/UCxyz')).toBeNull();
+    expect(await discoverFeedUrl('youtube', 'https://youtube.com.evil.com/@handle')).toBeNull();
+  });
 });
 
 describe('fetchFeedItems', () => {
