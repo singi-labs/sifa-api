@@ -73,6 +73,31 @@ describe('atproto-app-registry', () => {
       expect(result?.id).toBe('smokesignal');
     });
 
+    it('maps site.standard.document to standard via scanCollections', () => {
+      const result = getAppForCollection('site.standard.document');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('standard');
+      expect(result?.matchedPrefix).toBe('site.standard');
+    });
+
+    it('maps site.standard.publication to standard via scanCollections', () => {
+      const result = getAppForCollection('site.standard.publication');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('standard');
+    });
+
+    it('maps computer.aetheros.page to aetheros via scanCollections', () => {
+      const result = getAppForCollection('computer.aetheros.page');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('aetheros');
+    });
+
+    it('maps space.roomy.space.personal to roomy via scanCollections', () => {
+      const result = getAppForCollection('space.roomy.space.personal');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('roomy');
+    });
+
     it('returns undefined for unknown collections', () => {
       const result = getAppForCollection('com.unknown.something');
       expect(result).toBeUndefined();
@@ -103,8 +128,12 @@ describe('atproto-app-registry', () => {
       expect(EXCLUDED_COLLECTIONS).toContain('fyi.unravel.frontpage.vote');
     });
 
-    it('has exactly 10 entries', () => {
-      expect(EXCLUDED_COLLECTIONS).toHaveLength(10);
+    it('includes alternativeproto vote', () => {
+      expect(EXCLUDED_COLLECTIONS).toContain('net.alternativeproto.vote');
+    });
+
+    it('has exactly 11 entries', () => {
+      expect(EXCLUDED_COLLECTIONS).toHaveLength(11);
     });
   });
 });

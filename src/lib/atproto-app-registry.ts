@@ -89,6 +89,33 @@ const APP_REGISTRY: AppRegistryEntry[] = [
     urlPattern: 'https://pastesphere.link/user/{handle}/snippet/{rkey}',
     color: 'amber',
   },
+  {
+    id: 'standard',
+    name: 'Standard',
+    category: 'Articles',
+    collectionPrefixes: ['site.standard'],
+    scanCollections: ['site.standard.document', 'site.standard.publication'],
+    urlPattern: 'https://standard.site/{handle}/{rkey}',
+    color: 'blue',
+  },
+  {
+    id: 'aetheros',
+    name: 'Aetheros',
+    category: 'Pages',
+    collectionPrefixes: ['computer.aetheros'],
+    scanCollections: ['computer.aetheros.page'],
+    urlPattern: 'https://aetheros.computer/{handle}',
+    color: 'indigo',
+  },
+  {
+    id: 'roomy',
+    name: 'Roomy',
+    category: 'Social',
+    collectionPrefixes: ['space.roomy'],
+    scanCollections: ['space.roomy.space.personal'],
+    urlPattern: 'https://roomy.space',
+    color: 'purple',
+  },
 ];
 
 export const EXCLUDED_COLLECTIONS: string[] = [
@@ -102,6 +129,7 @@ export const EXCLUDED_COLLECTIONS: string[] = [
   'sh.tangled.feed.star',
   'events.smokesignal.calendar.rsvp',
   'fyi.unravel.frontpage.vote',
+  'net.alternativeproto.vote',
 ];
 
 export function getAppsRegistry(): AppRegistryEntry[] {
