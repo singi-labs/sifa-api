@@ -27,6 +27,12 @@ import { resolveSessionDid } from '../middleware/auth.js';
 import { isVerifiablePlatform } from '../services/verification.js';
 import { resolveProfileFields } from '../lib/resolve-profile.js';
 import { resolvePdsHost, mapPdsHostToProvider } from '../lib/pds-provider.js';
+import {
+  getVisibleAppStats,
+  triggerRefreshIfStale,
+  isDidSuppressed,
+} from '../services/app-stats.js';
+import { getAppsRegistry } from '../lib/atproto-app-registry.js';
 
 export async function getMutualFollowCount(db: Database, did: string): Promise<number> {
   // Raw SQL required: Drizzle ORM doesn't support self-join aggregate subqueries for mutual follow counting
@@ -244,6 +250,7 @@ export function registerProfileRoutes(
             followingCount: 0,
             connectionsCount: 0,
             atprotoFollowersCount: bskyFollowers,
+            activeApps: [],
             inviteCount: inviteCountResult[0]?.value ?? 0,
             pdsProvider: pdsHost ? mapPdsHostToProvider(pdsHost) : null,
             claimed: false,
@@ -334,6 +341,28 @@ export function registerProfileRoutes(
       const followersCount = followersResult[0]?.value ?? 0;
       const followingCount = followingResult[0]?.value ?? 0;
 
+      // Fetch active apps (cross-app activity) in parallel
+      const [suppressed, visibleStats] = await Promise.all([
+        isDidSuppressed(db, profile.did),
+        getVisibleAppStats(db, profile.did),
+      ]);
+
+      const registry = getAppsRegistry();
+      const activeApps = suppressed
+        ? []
+        : visibleStats
+            .filter((s) => s.isActive)
+            .map((s) => {
+              const registryEntry = registry.find((r) => r.id === s.appId);
+              return {
+                id: s.appId,
+                name: registryEntry?.name ?? s.appId,
+                category: registryEntry?.category ?? 'Other',
+                recentCount: s.recentCount,
+                latestRecordAt: s.latestRecordAt?.toISOString() ?? null,
+              };
+            });
+
       // Assemble location display string from parts
       const locationParts = [
         profile.locationCity,
@@ -366,6 +395,11 @@ export function registerProfileRoutes(
           .catch((err: unknown) => {
             request.log.warn({ err, did: profile.did }, 'Failed to cache pdsHost');
           });
+      }
+
+      // Trigger background PDS scan if data is stale (fire-and-forget)
+      if (valkey && pdsHost) {
+        triggerRefreshIfStale(db, valkey, profile.did, pdsHost);
       }
 
       // Find primary external account for website display
@@ -510,6 +544,7 @@ export function registerProfileRoutes(
         followersCount,
         followingCount,
         connectionsCount: connectionsCountResult,
+        activeApps,
         atprotoFollowersCount: atprotoFollowersCount ?? 0,
         inviteCount: inviteCountResult[0]?.value ?? 0,
         pdsProvider: pdsHost ? mapPdsHostToProvider(pdsHost) : null,

@@ -45,6 +45,7 @@ import { createCourseIndexer } from './jetstream/indexers/course.js';
 import { createHonorIndexer } from './jetstream/indexers/honor.js';
 import { createLanguageIndexer } from './jetstream/indexers/language.js';
 import { createCursorManager } from './jetstream/cursor.js';
+import { registerActivityRoutes } from './routes/activity.js';
 import { registerAppsRoutes } from './routes/apps.js';
 import { registerFeaturedRoutes } from './routes/featured.js';
 import { startFeaturedProfileJob } from './services/featured-job.js';
@@ -161,6 +162,7 @@ export async function buildServer(config: Env) {
   registerStatsRoutes(app, db, valkey);
   registerAdminStatsRoutes(app, db, valkey, oauthClient, config);
   registerLocationRoutes(app, config.GEONAMES_USERNAME);
+  registerActivityRoutes(app, db, oauthClient);
   registerAppsRoutes(app, valkey);
   registerFeaturedRoutes(app, db, valkey);
 
