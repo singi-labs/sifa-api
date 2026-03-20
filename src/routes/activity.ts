@@ -333,16 +333,15 @@ export function registerActivityRoutes(
     const stats = await getVisibleAppStats(db, did);
     const registry = getAppsRegistry();
 
-    // Compute available categories from all visible active apps
+    // Compute available categories from all visible apps the user has
+    // (a row exists in user_app_stats when the scanner found the collection in the PDS)
     const availableCategories = [
       ...new Set(
         stats
-          .filter((s) => s.isActive)
           .map((s) => registry.find((e) => e.id === s.appId)?.category)
           .filter((c): c is string => c !== undefined),
       ),
     ];
-
     // Filter apps by category if specified
     let targetApps: { stat: (typeof stats)[number]; entry: AppRegistryEntry }[];
     if (categoryParam === 'all') {
