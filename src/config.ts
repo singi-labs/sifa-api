@@ -11,6 +11,8 @@ const envSchema = z.object({
   OAUTH_JWKS_PATH: z.string(),
   GLITCHTIP_DSN: z.string().url().optional(),
   GEONAMES_USERNAME: z.string().default('gxjansen'),
+  UPLOAD_DIR: z.string().default('./uploads'),
+  UPLOAD_MAX_SIZE_BYTES: z.coerce.number().default(5_242_880),
   ADMIN_DIDS: z.string().optional(),
   SIFA_BOT_IDENTIFIER: z.string().optional(),
   SIFA_BOT_APP_PASSWORD: z.string().optional(),
