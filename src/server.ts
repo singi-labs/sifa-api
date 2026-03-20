@@ -5,7 +5,11 @@ import helmet from '@fastify/helmet';
 import cors from '@fastify/cors';
 import cookie from '@fastify/cookie';
 import rateLimit from '@fastify/rate-limit';
+import fastifyStatic from '@fastify/static';
+import fastifyMultipart from '@fastify/multipart';
 import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
+import { createLocalStorage } from './lib/storage.js';
 import type { Env } from './config.js';
 import { createDb } from './db/index.js';
 import { runMigrations } from './db/migrate.js';
@@ -101,6 +105,19 @@ export async function buildServer(config: Env) {
     },
   });
 
+  await app.register(fastifyMultipart, {
+    limits: { fileSize: config.UPLOAD_MAX_SIZE_BYTES },
+  });
+
+  const uploadDir = resolve(config.UPLOAD_DIR);
+  await app.register(fastifyStatic, {
+    root: uploadDir,
+    prefix: '/uploads/',
+    decorateReply: false,
+  });
+
+  const storage = createLocalStorage(uploadDir, config.PUBLIC_URL, app.log);
+
   app.setErrorHandler(async (error: FastifyError, _request, reply) => {
     if (config.GLITCHTIP_DSN) {
       Sentry.captureException(error);
@@ -133,7 +150,7 @@ export async function buildServer(config: Env) {
   registerOAuthMetadata(app, config);
   registerOAuthRoutes(app, db, oauthClient);
   registerProfileRoutes(app, db, valkey);
-  registerProfileWriteRoutes(app, db, oauthClient);
+  registerProfileWriteRoutes(app, db, oauthClient, storage);
   registerImportRoutes(app, db, oauthClient);
   registerFollowRoutes(app, db, oauthClient);
   registerSearchRoutes(app, db);
