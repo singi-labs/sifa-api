@@ -18,6 +18,7 @@ import { createAuthMiddleware } from '../middleware/auth.js';
 import { createAdminMiddleware } from '../middleware/admin.js';
 
 const CACHE_TTL = 300; // 5 minutes
+const SITE_LAUNCH_DATE = '2026-03-04';
 
 /** Generate all YYYY-MM-DD strings from startDate to endDate (inclusive). */
 function allDatesBetween(startDate: string, endDate: string): string[] {
@@ -37,8 +38,6 @@ function fillDateGaps<T extends { date: string }>(
   days: number,
   defaults: Omit<T, 'date'>,
 ): T[] {
-  if (rows.length === 0 && days === 0) return rows;
-
   const today = new Date().toISOString().slice(0, 10);
   let startDate: string;
   if (days > 0) {
@@ -46,9 +45,9 @@ function fillDateGaps<T extends { date: string }>(
     start.setUTCDate(start.getUTCDate() - days);
     startDate = start.toISOString().slice(0, 10);
   } else {
-    const first = rows[0];
-    startDate = first !== undefined ? first.date : today;
+    startDate = SITE_LAUNCH_DATE;
   }
+  if (startDate < SITE_LAUNCH_DATE) startDate = SITE_LAUNCH_DATE;
   const endDate = today;
 
   const lookup = new Map(rows.map((r) => [r.date, r]));
