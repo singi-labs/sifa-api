@@ -49,6 +49,18 @@ describe('atproto-app-registry', () => {
       expect(result?.id).toBe('smokesignal');
     });
 
+    it('maps community.lexicon.calendar.rsvp to smokesignal', () => {
+      const result = getAppForCollection('community.lexicon.calendar.rsvp');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('smokesignal');
+    });
+
+    it('maps community.lexicon.calendar.event to smokesignal', () => {
+      const result = getAppForCollection('community.lexicon.calendar.event');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('smokesignal');
+    });
+
     it('returns undefined for unknown collections', () => {
       const result = getAppForCollection('com.unknown.something');
       expect(result).toBeUndefined();

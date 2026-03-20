@@ -30,8 +30,8 @@ const APP_REGISTRY: AppRegistryEntry[] = [
     id: 'smokesignal',
     name: 'Smoke Signal',
     category: 'Events',
-    collectionPrefixes: ['events.smokesignal'],
-    scanCollections: [],
+    collectionPrefixes: ['events.smokesignal', 'community.lexicon.calendar'],
+    scanCollections: ['community.lexicon.calendar.rsvp'],
     color: 'orange',
   },
   {
