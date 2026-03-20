@@ -125,6 +125,15 @@ const APP_REGISTRY: AppRegistryEntry[] = [
     urlPattern: 'https://keytrace.dev/{handle}',
     color: 'indigo',
   },
+  {
+    id: 'kipclip',
+    name: 'KipClip',
+    category: 'Links',
+    collectionPrefixes: ['com.kipclip', 'community.lexicon.bookmarks'],
+    scanCollections: ['community.lexicon.bookmarks.bookmark'],
+    urlPattern: 'https://kipclip.com/{handle}',
+    color: 'teal',
+  },
 ];
 
 export const EXCLUDED_COLLECTIONS: string[] = [
