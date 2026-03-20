@@ -60,9 +60,10 @@ describe('enrichRsvpItems', () => {
     const result = await enrichRsvpItems(items, null, successFetchEvent);
 
     expect(result).toHaveLength(1);
-    expect(result[0]).toEqual(items[0]);
+    const [first] = result;
+    expect(first).toEqual(items[0]);
     // Ensure no eventMeta was added to record
-    expect((result[0]!.record as Record<string, unknown>).eventMeta).toBeUndefined();
+    expect((first?.record as Record<string, unknown>).eventMeta).toBeUndefined();
   });
 
   it('enriches RSVP items with eventMeta when fetch succeeds', async () => {
@@ -70,7 +71,7 @@ describe('enrichRsvpItems', () => {
     const result = await enrichRsvpItems(items, null, successFetchEvent);
 
     expect(result).toHaveLength(1);
-    const enrichedRecord = result[0]!.record as Record<string, unknown>;
+    const enrichedRecord = result[0]?.record as Record<string, unknown>;
     expect(enrichedRecord.eventMeta).toBeDefined();
     const meta = enrichedRecord.eventMeta as EventMeta;
     expect(meta.name).toBe('ATProto Community Meetup');
@@ -84,10 +85,11 @@ describe('enrichRsvpItems', () => {
     const result = await enrichRsvpItems(items, null, failFetchEvent);
 
     expect(result).toHaveLength(1);
-    expect((result[0]!.record as Record<string, unknown>).eventMeta).toBeUndefined();
+    const [first] = result;
+    expect((first?.record as Record<string, unknown>).eventMeta).toBeUndefined();
     // Original fields preserved
-    expect(result[0]!.collection).toBe('community.lexicon.calendar.rsvp');
-    expect(result[0]!.uri).toBe(items[0]!.uri);
+    expect(first?.collection).toBe('community.lexicon.calendar.rsvp');
+    expect(first?.uri).toBe(items[0]?.uri);
   });
 
   it('only enriches RSVP items in a mixed list', async () => {
@@ -98,14 +100,15 @@ describe('enrichRsvpItems', () => {
     const result = await enrichRsvpItems(items, null, successFetchEvent);
 
     expect(result).toHaveLength(2);
+    const [enrichedItem, unchangedItem] = result;
 
     // RSVP item should be enriched
-    const enrichedRecord = result[0]!.record as Record<string, unknown>;
+    const enrichedRecord = enrichedItem?.record as Record<string, unknown>;
     expect(enrichedRecord.eventMeta).toBeDefined();
     expect((enrichedRecord.eventMeta as EventMeta).name).toBe('ATProto Community Meetup');
 
     // Non-RSVP item should pass through unchanged
-    expect((result[1]!.record as Record<string, unknown>).eventMeta).toBeUndefined();
-    expect(result[1]!.collection).toBe('app.bsky.feed.post');
+    expect((unchangedItem?.record as Record<string, unknown>).eventMeta).toBeUndefined();
+    expect(unchangedItem?.collection).toBe('app.bsky.feed.post');
   });
 });
