@@ -28,6 +28,7 @@ import {
   generateTid,
   buildApplyWritesOp,
   writeToUserPds,
+  pdsRecordExists,
   isPdsRecordNotFound,
   handlePdsError,
 } from '../services/pds-writer.js';
@@ -87,8 +88,9 @@ export function registerProfileWriteRoutes(
       record.location = parsed.data.location;
     }
 
+    const exists = await pdsRecordExists(session, did, 'id.sifa.profile.self', 'self');
     await writeToUserPds(session, did, [
-      buildApplyWritesOp('update', 'id.sifa.profile.self', 'self', record),
+      buildApplyWritesOp(exists ? 'update' : 'create', 'id.sifa.profile.self', 'self', record),
     ]);
 
     // Write-through: update local DB immediately
