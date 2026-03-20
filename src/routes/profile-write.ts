@@ -33,6 +33,8 @@ import {
 } from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { sanitize, sanitizeOptional } from '../lib/sanitize.js';
+import type { StorageService } from '../lib/storage.js';
+import sharp from 'sharp';
 import { wipeSifaData } from '../services/profile-wipe.js';
 import {
   indexProfileSelf,
@@ -53,12 +55,14 @@ import {
 const overrideSchema = z.object({
   headline: z.string().max(300).nullish(),
   about: z.string().max(50000).nullish(),
+  displayName: z.string().max(256).nullish(),
 });
 
 export function registerProfileWriteRoutes(
   app: FastifyInstance,
   db: Database,
   oauthClient: NodeOAuthClient | null,
+  storage: StorageService,
 ) {
   const requireAuth = createAuthMiddleware(oauthClient, db);
 
@@ -1012,6 +1016,9 @@ export function registerProfileWriteRoutes(
     if ('about' in body) {
       updates.aboutOverride = parsed.data.about?.trim() || null;
     }
+    if ('displayName' in body) {
+      updates.displayNameOverride = parsed.data.displayName?.trim() || null;
+    }
 
     if (Object.keys(updates).length === 0) {
       return reply.status(400).send({ error: 'ValidationError', message: 'No fields to update' });
@@ -1029,13 +1036,97 @@ export function registerProfileWriteRoutes(
   app.delete('/api/profile/override', { preHandler: requireAuth }, async (request, reply) => {
     const { did } = getAuthContext(request);
 
+    // Delete avatar file if there was an override
+    const [existing] = await db
+      .select({ avatarUrlOverride: profilesTable.avatarUrlOverride })
+      .from(profilesTable)
+      .where(eq(profilesTable.did, did))
+      .limit(1);
+    if (existing?.avatarUrlOverride) {
+      await storage.delete(existing.avatarUrlOverride);
+    }
+
     await db
       .update(profilesTable)
       .set({
         headlineOverride: null,
         aboutOverride: null,
+        displayNameOverride: null,
+        avatarUrlOverride: null,
         updatedAt: new Date(),
       })
+      .where(eq(profilesTable.did, did));
+
+    return reply.status(200).send({ ok: true });
+  });
+
+  const ALLOWED_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif']);
+
+  // POST /api/profile/avatar -- upload a custom avatar
+  app.post(
+    '/api/profile/avatar',
+    {
+      preHandler: requireAuth,
+      config: { rateLimit: { max: 10, timeWindow: '1 minute' } },
+    },
+    async (request, reply) => {
+      const { did } = getAuthContext(request);
+      const file = await request.file();
+      if (!file) {
+        return reply.status(400).send({ error: 'ValidationError', message: 'No file uploaded' });
+      }
+
+      if (!ALLOWED_IMAGE_TYPES.has(file.mimetype)) {
+        return reply.status(400).send({
+          error: 'ValidationError',
+          message: 'Allowed image types: JPEG, PNG, WebP, GIF',
+        });
+      }
+
+      const buffer = await file.toBuffer();
+      const processed = await sharp(buffer)
+        .resize(400, 400, { fit: 'cover' })
+        .webp({ quality: 85 })
+        .toBuffer();
+
+      // Delete old avatar override if present
+      const [existing] = await db
+        .select({ avatarUrlOverride: profilesTable.avatarUrlOverride })
+        .from(profilesTable)
+        .where(eq(profilesTable.did, did))
+        .limit(1);
+      if (existing?.avatarUrlOverride) {
+        await storage.delete(existing.avatarUrlOverride);
+      }
+
+      const url = await storage.store(processed, 'image/webp', 'avatars');
+
+      await db
+        .update(profilesTable)
+        .set({ avatarUrlOverride: url, updatedAt: new Date() })
+        .where(eq(profilesTable.did, did));
+
+      return reply.status(200).send({ url });
+    },
+  );
+
+  // DELETE /api/profile/avatar -- remove avatar override
+  app.delete('/api/profile/avatar', { preHandler: requireAuth }, async (request, reply) => {
+    const { did } = getAuthContext(request);
+
+    const [existing] = await db
+      .select({ avatarUrlOverride: profilesTable.avatarUrlOverride })
+      .from(profilesTable)
+      .where(eq(profilesTable.did, did))
+      .limit(1);
+
+    if (existing?.avatarUrlOverride) {
+      await storage.delete(existing.avatarUrlOverride);
+    }
+
+    await db
+      .update(profilesTable)
+      .set({ avatarUrlOverride: null, updatedAt: new Date() })
       .where(eq(profilesTable.did, did));
 
     return reply.status(200).send({ ok: true });

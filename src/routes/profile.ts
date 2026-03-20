@@ -210,9 +210,13 @@ export function registerProfileRoutes(
             about: bskyProfile.data.description ?? null,
             hasHeadlineOverride: false,
             hasAboutOverride: false,
+            hasDisplayNameOverride: false,
+            hasAvatarUrlOverride: false,
             source: {
               headline: null,
               about: bskyProfile.data.description ?? null,
+              displayName: bskyProfile.data.displayName ?? null,
+              avatarUrl: bskyProfile.data.avatar ?? null,
             },
             industry: null,
             locationCountry: null,
@@ -283,8 +287,18 @@ export function registerProfileRoutes(
       ]);
 
       const resolved = resolveProfileFields(
-        { headline: profile.headline, about: profile.about },
-        { headline: profile.headlineOverride, about: profile.aboutOverride },
+        {
+          headline: profile.headline,
+          about: profile.about,
+          displayName: profile.displayName,
+          avatarUrl: profile.avatarUrl,
+        },
+        {
+          headline: profile.headlineOverride,
+          about: profile.aboutOverride,
+          displayName: profile.displayNameOverride,
+          avatarUrl: profile.avatarUrlOverride,
+        },
       );
 
       const viewerDid = await resolveSessionDid(db, request.cookies?.session);
@@ -364,16 +378,20 @@ export function registerProfileRoutes(
       return reply.send({
         did: profile.did,
         handle: profile.handle,
-        displayName: profile.displayName,
-        avatar: profile.avatarUrl,
+        displayName: resolved.displayName,
+        avatar: resolved.avatarUrl,
         pronouns,
         headline: resolved.headline,
         about: resolved.about,
         hasHeadlineOverride: resolved.hasHeadlineOverride,
         hasAboutOverride: resolved.hasAboutOverride,
+        hasDisplayNameOverride: resolved.hasDisplayNameOverride,
+        hasAvatarUrlOverride: resolved.hasAvatarUrlOverride,
         source: {
           headline: profile.headline,
           about: profile.about,
+          displayName: profile.displayName,
+          avatarUrl: profile.avatarUrl,
         },
         industry: profile.industry,
         locationCountry: profile.locationCountry,
