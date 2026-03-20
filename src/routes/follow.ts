@@ -126,10 +126,18 @@ export function registerFollowRoutes(
 
     const conditions = [eq(connections.followerDid, did)];
     if (source) {
+      const validSources = ['sifa', 'bluesky', 'tangled'] as const;
+      if (!validSources.includes(source as (typeof validSources)[number])) {
+        return reply.status(400).send({ error: 'InvalidRequest', message: 'Invalid source value' });
+      }
       conditions.push(eq(connections.source, source));
     }
     if (query.cursor) {
-      conditions.push(lt(connections.createdAt, new Date(query.cursor)));
+      const cursorDate = new Date(query.cursor);
+      if (isNaN(cursorDate.getTime())) {
+        return reply.status(400).send({ error: 'InvalidRequest', message: 'Invalid cursor value' });
+      }
+      conditions.push(lt(connections.createdAt, cursorDate));
     }
 
     const rows = await db
@@ -153,9 +161,18 @@ export function registerFollowRoutes(
 
     // Enrich rows without profile data from Bluesky
     const needEnrich = items.filter((r) => !r.handle).map((r) => r.subjectDid);
-    const enriched =
-      needEnrich.length > 0 ? await fetchProfilesFromBluesky(needEnrich, app.log) : [];
-    const enrichedMap = new Map(enriched.map((p) => [p.did, p]));
+    let enrichedMap = new Map<
+      string,
+      { did: string; handle: string; displayName?: string; avatarUrl?: string }
+    >();
+    if (needEnrich.length > 0) {
+      try {
+        const enriched = await fetchProfilesFromBluesky(needEnrich, app.log);
+        enrichedMap = new Map(enriched.map((p) => [p.did, p]));
+      } catch (err) {
+        app.log.warn({ err }, 'Failed to enrich following list from Bluesky');
+      }
+    }
 
     const follows = items.map((r) => {
       const bsky = enrichedMap.get(r.subjectDid);
@@ -165,7 +182,7 @@ export function registerFollowRoutes(
         handle: r.handle || bsky?.handle || '',
         displayName: r.displayName ?? bsky?.displayName,
         headline: r.headline ?? undefined,
-        avatar: r.avatarUrl ?? bsky?.avatarUrl,
+        avatarUrl: r.avatarUrl ?? bsky?.avatarUrl,
         source: r.source,
         claimed,
         followedAt: r.createdAt.toISOString(),
