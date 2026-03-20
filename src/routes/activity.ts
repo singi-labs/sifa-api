@@ -333,6 +333,16 @@ export function registerActivityRoutes(
     const stats = await getVisibleAppStats(db, did);
     const registry = getAppsRegistry();
 
+    // Compute available categories from all visible active apps
+    const availableCategories = [
+      ...new Set(
+        stats
+          .filter((s) => s.isActive)
+          .map((s) => registry.find((e) => e.id === s.appId)?.category)
+          .filter((c): c is string => c !== undefined),
+      ),
+    ];
+
     // Filter apps by category if specified
     let targetApps: { stat: (typeof stats)[number]; entry: AppRegistryEntry }[];
     if (categoryParam === 'all') {
@@ -463,7 +473,7 @@ export function registerActivityRoutes(
       ? Buffer.from(JSON.stringify({ cursors: newCursors }), 'utf-8').toString('base64url')
       : null;
 
-    return reply.send({ items, cursor: compositeCursor, hasMore });
+    return reply.send({ items, cursor: compositeCursor, hasMore, availableCategories });
   });
 
   // POST /api/privacy/suppress -- GDPR erasure endpoint (no auth required)
