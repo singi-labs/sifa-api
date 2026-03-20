@@ -143,8 +143,9 @@ export function registerProfileWriteRoutes(
         ...parsed.data,
       };
 
+      const exists = await pdsRecordExists(session, did, 'id.sifa.profile.position', rkey);
       await writeToUserPds(session, did, [
-        buildApplyWritesOp('update', 'id.sifa.profile.position', rkey, record),
+        buildApplyWritesOp(exists ? 'update' : 'create', 'id.sifa.profile.position', rkey, record),
       ]);
 
       // Write-through: update local DB immediately
@@ -221,8 +222,9 @@ export function registerProfileWriteRoutes(
         ...parsed.data,
       };
 
+      const exists = await pdsRecordExists(session, did, 'id.sifa.profile.education', rkey);
       await writeToUserPds(session, did, [
-        buildApplyWritesOp('update', 'id.sifa.profile.education', rkey, record),
+        buildApplyWritesOp(exists ? 'update' : 'create', 'id.sifa.profile.education', rkey, record),
       ]);
 
       await indexEducation(db, did, rkey, record);
@@ -297,8 +299,9 @@ export function registerProfileWriteRoutes(
         ...parsed.data,
       };
 
+      const exists = await pdsRecordExists(session, did, 'id.sifa.profile.skill', rkey);
       await writeToUserPds(session, did, [
-        buildApplyWritesOp('update', 'id.sifa.profile.skill', rkey, record),
+        buildApplyWritesOp(exists ? 'update' : 'create', 'id.sifa.profile.skill', rkey, record),
       ]);
 
       await indexSkill(db, did, rkey, record);
@@ -377,7 +380,10 @@ export function registerProfileWriteRoutes(
       const { did, session } = getAuthContext(request);
       const data = parsed.data as Record<string, unknown>;
       const record: Record<string, unknown> = { createdAt: new Date().toISOString(), ...data };
-      await writeToUserPds(session, did, [buildApplyWritesOp('update', collection, rkey, record)]);
+      const exists = await pdsRecordExists(session, did, collection, rkey);
+      await writeToUserPds(session, did, [
+        buildApplyWritesOp(exists ? 'update' : 'create', collection, rkey, record),
+      ]);
       await indexRecord(db, collection, did, rkey, record);
       return reply.status(200).send({ ok: true });
     },

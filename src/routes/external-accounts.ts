@@ -9,6 +9,7 @@ import {
   generateTid,
   buildApplyWritesOp,
   writeToUserPds,
+  pdsRecordExists,
   isPdsRecordNotFound,
   handlePdsError,
 } from '../services/pds-writer.js';
@@ -112,8 +113,19 @@ export function registerExternalAccountRoutes(
         isPrimary: existing?.isPrimary ?? false,
       };
 
+      const existsOnPds = await pdsRecordExists(
+        session,
+        did,
+        'id.sifa.profile.externalAccount',
+        rkey,
+      );
       await writeToUserPds(session, did, [
-        buildApplyWritesOp('update', 'id.sifa.profile.externalAccount', rkey, record),
+        buildApplyWritesOp(
+          existsOnPds ? 'update' : 'create',
+          'id.sifa.profile.externalAccount',
+          rkey,
+          record,
+        ),
       ]);
 
       await indexRecord(db, 'id.sifa.profile.externalAccount', did, rkey, record);
@@ -190,28 +202,50 @@ export function registerExternalAccountRoutes(
 
       // Unset old primary in PDS
       if (currentPrimary && currentPrimary.rkey !== rkey) {
+        const oldExists = await pdsRecordExists(
+          session,
+          did,
+          'id.sifa.profile.externalAccount',
+          currentPrimary.rkey,
+        );
         ops.push(
-          buildApplyWritesOp('update', 'id.sifa.profile.externalAccount', currentPrimary.rkey, {
-            createdAt: currentPrimary.createdAt.toISOString(),
-            platform: currentPrimary.platform,
-            url: currentPrimary.url,
-            ...(currentPrimary.label ? { label: currentPrimary.label } : {}),
-            ...(currentPrimary.feedUrl ? { feedUrl: currentPrimary.feedUrl } : {}),
-            isPrimary: false,
-          }),
+          buildApplyWritesOp(
+            oldExists ? 'update' : 'create',
+            'id.sifa.profile.externalAccount',
+            currentPrimary.rkey,
+            {
+              createdAt: currentPrimary.createdAt.toISOString(),
+              platform: currentPrimary.platform,
+              url: currentPrimary.url,
+              ...(currentPrimary.label ? { label: currentPrimary.label } : {}),
+              ...(currentPrimary.feedUrl ? { feedUrl: currentPrimary.feedUrl } : {}),
+              isPrimary: false,
+            },
+          ),
         );
       }
 
       // Set new primary in PDS
+      const newExists = await pdsRecordExists(
+        session,
+        did,
+        'id.sifa.profile.externalAccount',
+        rkey,
+      );
       ops.push(
-        buildApplyWritesOp('update', 'id.sifa.profile.externalAccount', rkey, {
-          createdAt: account.createdAt.toISOString(),
-          platform: account.platform,
-          url: account.url,
-          ...(account.label ? { label: account.label } : {}),
-          ...(account.feedUrl ? { feedUrl: account.feedUrl } : {}),
-          isPrimary: true,
-        }),
+        buildApplyWritesOp(
+          newExists ? 'update' : 'create',
+          'id.sifa.profile.externalAccount',
+          rkey,
+          {
+            createdAt: account.createdAt.toISOString(),
+            platform: account.platform,
+            url: account.url,
+            ...(account.label ? { label: account.label } : {}),
+            ...(account.feedUrl ? { feedUrl: account.feedUrl } : {}),
+            isPrimary: true,
+          },
+        ),
       );
 
       await writeToUserPds(session, did, ops);
@@ -245,15 +279,26 @@ export function registerExternalAccountRoutes(
         .limit(1);
 
       if (account) {
+        const existsOnPds = await pdsRecordExists(
+          session,
+          did,
+          'id.sifa.profile.externalAccount',
+          rkey,
+        );
         await writeToUserPds(session, did, [
-          buildApplyWritesOp('update', 'id.sifa.profile.externalAccount', rkey, {
-            createdAt: account.createdAt.toISOString(),
-            platform: account.platform,
-            url: account.url,
-            ...(account.label ? { label: account.label } : {}),
-            ...(account.feedUrl ? { feedUrl: account.feedUrl } : {}),
-            isPrimary: false,
-          }),
+          buildApplyWritesOp(
+            existsOnPds ? 'update' : 'create',
+            'id.sifa.profile.externalAccount',
+            rkey,
+            {
+              createdAt: account.createdAt.toISOString(),
+              platform: account.platform,
+              url: account.url,
+              ...(account.label ? { label: account.label } : {}),
+              ...(account.feedUrl ? { feedUrl: account.feedUrl } : {}),
+              isPrimary: false,
+            },
+          ),
         ]);
       }
 
