@@ -8,7 +8,10 @@ import { and, eq, ne, notInArray, sql, count, gt } from 'drizzle-orm';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { fetchBlueskyFollowsFromPds, importBlueskyFollows } from '../services/bluesky-follows.js';
 import { fetchTangledFollowsFromPds, importTangledFollows } from '../services/tangled-follows.js';
-import { resolveAndUpsertProfiles } from '../services/profile-resolver.js';
+import {
+  resolveAndUpsertProfiles,
+  fetchProfilesFromBluesky,
+} from '../services/profile-resolver.js';
 
 const dismissSchema = z.object({
   subjectDid: z.string().startsWith('did:'),
@@ -129,14 +132,25 @@ export function registerSuggestionRoutes(
     const hasMore = notOnSifaRows.length > limit;
     const notOnSifaItems = hasMore ? notOnSifaRows.slice(0, limit) : notOnSifaRows;
 
-    const notOnSifa = notOnSifaItems.map((i) => ({
-      did: i.subjectDid,
-      handle: i.handle ?? '',
-      displayName: i.displayName ?? undefined,
-      avatarUrl: i.avatarUrl ?? undefined,
-      source: i.source,
-      dismissed: dismissedSet.has(i.subjectDid),
-    }));
+    // Enrich "Not on Sifa" results with Bluesky profile data (without persisting)
+    const didsNeedingProfiles = notOnSifaItems.filter((i) => !i.handle).map((i) => i.subjectDid);
+    const enriched =
+      didsNeedingProfiles.length > 0
+        ? await fetchProfilesFromBluesky(didsNeedingProfiles, app.log)
+        : [];
+    const enrichedMap = new Map(enriched.map((p) => [p.did, p]));
+
+    const notOnSifa = notOnSifaItems.map((i) => {
+      const bsky = enrichedMap.get(i.subjectDid);
+      return {
+        did: i.subjectDid,
+        handle: i.handle || bsky?.handle || '',
+        displayName: i.displayName ?? bsky?.displayName,
+        avatarUrl: i.avatarUrl ?? bsky?.avatarUrl,
+        source: i.source,
+        dismissed: dismissedSet.has(i.subjectDid),
+      };
+    });
 
     return reply.send({
       onSifa,
@@ -253,21 +267,23 @@ export function registerSuggestionRoutes(
         app.log.debug({ err, did }, 'Tangled follow sync skipped or failed');
       }
 
-      // Resolve profiles for imported DIDs that don't have profile data yet
-      const allDids = [
-        ...(blueskyCount > 0
-          ? (
-              await db
-                .select({ subjectDid: connections.subjectDid })
-                .from(connections)
-                .where(and(eq(connections.followerDid, did), ne(connections.source, 'sifa')))
-            ).map((r) => r.subjectDid)
-          : []),
-      ];
-      if (allDids.length > 0) {
+      // Only resolve profiles for DIDs that are actual Sifa users (have sessions)
+      // Do NOT insert profiles for random Bluesky follows — that pollutes the DB.
+      const claimedFollowDids = await db
+        .select({ subjectDid: connections.subjectDid })
+        .from(connections)
+        .where(
+          and(
+            eq(connections.followerDid, did),
+            ne(connections.source, 'sifa'),
+            sql`${connections.subjectDid} IN (SELECT DISTINCT did FROM sessions)`,
+          ),
+        );
+      const claimedDids = claimedFollowDids.map((r) => r.subjectDid);
+      if (claimedDids.length > 0) {
         try {
-          const resolved = await resolveAndUpsertProfiles(db, allDids, app.log);
-          app.log.info({ did, resolved }, 'Resolved profiles for suggestions');
+          const resolved = await resolveAndUpsertProfiles(db, claimedDids, app.log);
+          app.log.info({ did, resolved }, 'Resolved profiles for On Sifa suggestions');
         } catch (err) {
           app.log.error({ err, did }, 'Profile resolution for suggestions failed');
         }
