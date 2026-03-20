@@ -51,6 +51,9 @@ import {
   sessions as sessionsTable,
   oauthSessions as oauthSessionsTable,
 } from '../db/schema/index.js';
+import { scanUserApps } from '../services/pds-scanner.js';
+import { upsertScanResults } from '../services/app-stats.js';
+import { resolvePdsHost } from '../lib/pds-provider.js';
 
 const overrideSchema = z.object({
   headline: z.string().max(300).nullish(),
@@ -952,6 +955,19 @@ export function registerProfileWriteRoutes(
     }
 
     app.log.info({ did, synced }, 'Profile synced from PDS');
+
+    // Scan cross-app activity (blocking at claim time so badges are ready immediately)
+    try {
+      const pdsHost = await resolvePdsHost(did);
+      if (pdsHost) {
+        const scanResults = await scanUserApps(`https://${pdsHost}`, did);
+        await upsertScanResults(db, did, scanResults);
+      }
+    } catch (err) {
+      app.log.warn({ err, did }, 'Cross-app activity scan failed during profile sync');
+      // Non-fatal — profile sync still succeeds even if activity scan fails
+    }
+
     return reply.send({ synced });
   });
 
