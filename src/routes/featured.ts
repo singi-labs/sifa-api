@@ -73,27 +73,40 @@ export function registerFeaturedRoutes(
     }
 
     // Fetch current position, external accounts, followers, PDS, and Bluesky followers in parallel
-    const [profilePositions, primaryAccountResult, followersResult, resolvedPdsHost, bskyProfile] =
-      await Promise.all([
-        db
-          .select()
-          .from(positions)
-          .where(and(eq(positions.did, featured.did), eq(positions.current, true)))
-          .limit(1),
-        db
-          .select()
-          .from(externalAccounts)
-          .where(and(eq(externalAccounts.did, featured.did), eq(externalAccounts.isPrimary, true)))
-          .limit(1),
-        db
-          .select({ value: count() })
-          .from(connections)
-          .where(and(eq(connections.subjectDid, featured.did), eq(connections.source, 'sifa'))),
-        profile.pdsHost ? Promise.resolve(null) : resolvePdsHost(profile.did).catch(() => null),
-        publicBskyAgent
-          .getProfile({ actor: featured.did }, { signal: AbortSignal.timeout(3000) })
-          .catch(() => null),
-      ]);
+    const [
+      profilePositions,
+      primaryAccountResult,
+      followersResult,
+      resolvedPdsHost,
+      bskyProfile,
+      pronounsRecord,
+    ] = await Promise.all([
+      db
+        .select()
+        .from(positions)
+        .where(and(eq(positions.did, featured.did), eq(positions.current, true)))
+        .limit(1),
+      db
+        .select()
+        .from(externalAccounts)
+        .where(and(eq(externalAccounts.did, featured.did), eq(externalAccounts.isPrimary, true)))
+        .limit(1),
+      db
+        .select({ value: count() })
+        .from(connections)
+        .where(and(eq(connections.subjectDid, featured.did), eq(connections.source, 'sifa'))),
+      profile.pdsHost ? Promise.resolve(null) : resolvePdsHost(profile.did).catch(() => null),
+      publicBskyAgent
+        .getProfile({ actor: featured.did }, { signal: AbortSignal.timeout(3000) })
+        .catch(() => null),
+      publicBskyAgent.com.atproto.repo
+        .getRecord({
+          repo: featured.did,
+          collection: 'app.bsky.actor.profile',
+          rkey: 'self',
+        })
+        .catch(() => null),
+    ]);
 
     const currentPosition = profilePositions[0] ?? null;
     const primaryAccount = primaryAccountResult[0] ?? null;
@@ -101,6 +114,11 @@ export function registerFeaturedRoutes(
     const pdsHost = profile.pdsHost ?? resolvedPdsHost;
     const atprotoFollowersCount =
       typeof bskyProfile?.data.followersCount === 'number' ? bskyProfile.data.followersCount : null;
+    const pronounsValue = pronounsRecord?.data.value as Record<string, unknown> | undefined;
+    const pronouns =
+      typeof pronounsValue?.pronouns === 'string' && pronounsValue.pronouns
+        ? pronounsValue.pronouns
+        : null;
 
     const resolved = resolveProfileFields(
       { headline: profile.headline, about: profile.about },
@@ -120,6 +138,7 @@ export function registerFeaturedRoutes(
       handle: profile.handle,
       displayName: profile.displayName,
       avatar: profile.avatarUrl,
+      pronouns,
       headline: resolved.headline,
       about: resolved.about,
       currentRole: currentPosition?.title ?? null,
