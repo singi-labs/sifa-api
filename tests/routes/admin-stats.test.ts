@@ -117,8 +117,8 @@ describe('Admin stats signups endpoint', () => {
     dbQueryResults = [
       [{ value: 30 }],
       [
-        { date: '2026-01-01', count: 10 },
-        { date: '2026-02-01', count: 20 },
+        { date: '2026-03-05', count: 10 },
+        { date: '2026-03-10', count: 20 },
       ],
     ];
     const db = makeDb();
@@ -131,14 +131,14 @@ describe('Admin stats signups endpoint', () => {
 
     const body = res.json();
     expect(body.totalUsers).toBe(30);
-    // Should have all dates from Jan 1 to today, not just 2
+    // Should have all dates from launch (Mar 4) to today, not just 2
     expect(body.signups.length).toBeGreaterThan(2);
-    const jan1 = body.signups.find((s: { date: string }) => s.date === '2026-01-01');
-    const feb1 = body.signups.find((s: { date: string }) => s.date === '2026-02-01');
-    expect(jan1).toEqual({ date: '2026-01-01', count: 10, cumulative: 10 });
-    expect(feb1).toEqual({ date: '2026-02-01', count: 20, cumulative: 30 });
-    // First entry should be Jan 1, last should be today
-    expect(body.signups[0].date).toBe('2026-01-01');
+    const mar5 = body.signups.find((s: { date: string }) => s.date === '2026-03-05');
+    const mar10 = body.signups.find((s: { date: string }) => s.date === '2026-03-10');
+    expect(mar5).toEqual({ date: '2026-03-05', count: 10, cumulative: 10 });
+    expect(mar10).toEqual({ date: '2026-03-10', count: 20, cumulative: 30 });
+    // First entry should be site launch date
+    expect(body.signups[0].date).toBe('2026-03-04');
   });
 
   it('rejects invalid days parameter', async () => {
