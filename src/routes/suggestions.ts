@@ -181,6 +181,8 @@ export function registerSuggestionRoutes(
       ne(connections.source, 'sifa'),
       notInArray(connections.subjectDid, sifaFollowedDids),
       notInArray(connections.subjectDid, dismissedDids),
+      // Only count people who are actually on Sifa (have logged in)
+      sql`${connections.subjectDid} IN (SELECT DISTINCT did FROM sessions)`,
     ];
 
     if (query.since) {
