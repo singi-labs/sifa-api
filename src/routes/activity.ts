@@ -23,7 +23,7 @@ const suppressSchema = z.object({
   handleOrDid: z.string().min(1).max(500),
 });
 
-interface ActivityItem {
+export interface ActivityItem {
   uri: string;
   collection: string;
   rkey: string;
@@ -93,6 +93,115 @@ function extractCreatedAt(record: unknown): string {
 function extractRkey(uri: string): string {
   const parts = uri.split('/');
   return parts[parts.length - 1] ?? '';
+}
+
+export interface EventMeta {
+  name: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  mode: string | null;
+  locationName: string | null;
+  locationLocality: string | null;
+  locationCountry: string | null;
+}
+
+/**
+ * Parse an AT URI (at://did/collection/rkey) into its components.
+ */
+function parseAtUri(uri: string): { did: string; collection: string; rkey: string } | null {
+  const match = /^at:\/\/(did:[^/]+)\/([^/]+)\/([^/]+)$/.exec(uri);
+  if (!match) return null;
+  return { did: match[1]!, collection: match[2]!, rkey: match[3]! };
+}
+
+/**
+ * Fetch an event record from the creator's PDS.
+ * This is the production implementation used when no mock is injected.
+ */
+async function fetchEventFromPds(uri: string): Promise<EventMeta | null> {
+  const parsed = parseAtUri(uri);
+  if (!parsed) return null;
+
+  try {
+    const pdsHost = await resolvePdsHost(parsed.did);
+    if (!pdsHost) return null;
+
+    const agent = new Agent(`https://${pdsHost}`);
+    const res = await agent.com.atproto.repo.getRecord(
+      { repo: parsed.did, collection: parsed.collection, rkey: parsed.rkey },
+      { signal: AbortSignal.timeout(3000) },
+    );
+
+    const record = res.data.value as Record<string, unknown>;
+    const locations = Array.isArray(record.locations) ? record.locations : [];
+    const firstLocation = (locations[0] ?? {}) as Record<string, unknown>;
+
+    return {
+      name: typeof record.name === 'string' ? record.name : '',
+      startsAt: typeof record.startsAt === 'string' ? record.startsAt : null,
+      endsAt: typeof record.endsAt === 'string' ? record.endsAt : null,
+      mode: typeof record.mode === 'string' ? record.mode : null,
+      locationName: typeof firstLocation.name === 'string' ? firstLocation.name : null,
+      locationLocality: typeof firstLocation.locality === 'string' ? firstLocation.locality : null,
+      locationCountry: typeof firstLocation.country === 'string' ? firstLocation.country : null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Enrich RSVP activity items with event metadata from the referenced event record.
+ * Non-RSVP items pass through unchanged. Failed fetches leave items unchanged.
+ * Accepts an optional fetchEvent function for dependency injection in tests.
+ */
+export async function enrichRsvpItems(
+  items: ActivityItem[],
+  valkey: ValkeyClient | null,
+  fetchEvent?: (uri: string) => Promise<EventMeta | null>,
+): Promise<ActivityItem[]> {
+  const fetcher = fetchEvent ?? fetchEventFromPds;
+
+  const enrichPromises = items.map(async (item) => {
+    if (item.collection !== 'community.lexicon.calendar.rsvp') {
+      return item;
+    }
+
+    const record = item.record as Record<string, unknown> | null;
+    const subject = record?.subject as { uri?: string } | undefined;
+    const eventUri = subject?.uri;
+    if (!eventUri) return item;
+
+    // Check Valkey cache
+    const cacheKey = `event-meta:${eventUri}`;
+    if (valkey) {
+      try {
+        const cached = await valkey.get(cacheKey);
+        if (cached !== null) {
+          const eventMeta = JSON.parse(cached) as EventMeta;
+          return { ...item, record: { ...record, eventMeta } };
+        }
+      } catch {
+        // Cache miss or error -- fall through to fetch
+      }
+    }
+
+    const eventMeta = await fetcher(eventUri);
+    if (!eventMeta) return item;
+
+    // Cache for 1 hour
+    if (valkey) {
+      try {
+        await valkey.set(cacheKey, JSON.stringify(eventMeta), 'EX', 3600);
+      } catch {
+        // Cache write failure is non-critical
+      }
+    }
+
+    return { ...item, record: { ...record, eventMeta } };
+  });
+
+  return Promise.all(enrichPromises);
 }
 
 /**
