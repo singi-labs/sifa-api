@@ -62,6 +62,21 @@ export async function writeToUserPds(session: OAuthSession, repo: string, writes
   });
 }
 
+export async function pdsRecordExists(
+  session: OAuthSession,
+  repo: string,
+  collection: string,
+  rkey: string,
+): Promise<boolean> {
+  const agent = new Agent(session);
+  try {
+    await agent.com.atproto.repo.getRecord({ repo, collection, rkey });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export function isPdsRecordNotFound(err: unknown): boolean {
   return (
     err instanceof Error &&
