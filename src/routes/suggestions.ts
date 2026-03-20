@@ -8,6 +8,7 @@ import { and, eq, ne, notInArray, sql, count, gt } from 'drizzle-orm';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { fetchBlueskyFollowsFromPds, importBlueskyFollows } from '../services/bluesky-follows.js';
 import { fetchTangledFollowsFromPds, importTangledFollows } from '../services/tangled-follows.js';
+import { resolveAndUpsertProfiles } from '../services/profile-resolver.js';
 
 const dismissSchema = z.object({
   subjectDid: z.string().startsWith('did:'),
@@ -37,7 +38,7 @@ export function registerSuggestionRoutes(
 
     const source = query.source;
     const includeDismissed = query.include_dismissed === 'true';
-    const limit = Math.min(parseInt(query.limit ?? '50', 10) || 50, 100);
+    const limit = Math.min(parseInt(query.limit ?? '20', 10) || 20, 100);
 
     // Get DIDs already followed on Sifa
     const sifaFollowedDids = db
@@ -246,6 +247,26 @@ export function registerSuggestionRoutes(
         app.log.info({ did, count: tangledCount }, 'Synced Tangled follows');
       } catch (err) {
         app.log.debug({ err, did }, 'Tangled follow sync skipped or failed');
+      }
+
+      // Resolve profiles for imported DIDs that don't have profile data yet
+      const allDids = [
+        ...(blueskyCount > 0
+          ? (
+              await db
+                .select({ subjectDid: connections.subjectDid })
+                .from(connections)
+                .where(and(eq(connections.followerDid, did), ne(connections.source, 'sifa')))
+            ).map((r) => r.subjectDid)
+          : []),
+      ];
+      if (allDids.length > 0) {
+        try {
+          const resolved = await resolveAndUpsertProfiles(db, allDids, app.log);
+          app.log.info({ did, resolved }, 'Resolved profiles for suggestions');
+        } catch (err) {
+          app.log.error({ err, did }, 'Profile resolution for suggestions failed');
+        }
       }
 
       return reply.send({
