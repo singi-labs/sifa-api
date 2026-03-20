@@ -31,8 +31,8 @@ const APP_REGISTRY: AppRegistryEntry[] = [
     id: 'smokesignal',
     name: 'Smoke Signal',
     category: 'Events',
-    collectionPrefixes: ['events.smokesignal'],
-    scanCollections: ['events.smokesignal.calendar.event'],
+    collectionPrefixes: ['events.smokesignal', 'community.lexicon.calendar'],
+    scanCollections: ['community.lexicon.calendar.rsvp', 'events.smokesignal.profile'],
     urlPattern: 'https://smokesignal.events/{did}/{rkey}',
     color: 'orange',
   },
@@ -127,7 +127,6 @@ export const EXCLUDED_COLLECTIONS: string[] = [
   'app.bsky.graph.listitem',
   'sh.tangled.graph.follow',
   'sh.tangled.feed.star',
-  'events.smokesignal.calendar.rsvp',
   'fyi.unravel.frontpage.vote',
   'net.alternativeproto.vote',
 ];
