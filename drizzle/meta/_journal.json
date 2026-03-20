@@ -134,6 +134,13 @@
       "when": 1774317600000,
       "tag": "0018_avatar_displayname_overrides",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1774404000000,
+      "tag": "0019_user_app_stats",
+      "breakpoints": true
     }
   ]
 }
