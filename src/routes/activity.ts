@@ -403,8 +403,9 @@ export function registerActivityRoutes(
       // Sort by date descending, take up to 5
       allItems.sort((a, b) => new Date(b.indexedAt).getTime() - new Date(a.indexedAt).getTime());
       const items = allItems.slice(0, 5);
+      const enrichedItems = await enrichRsvpItems(items, valkey);
 
-      const responseBody = { items };
+      const responseBody = { items: enrichedItems };
 
       // Cache result
       if (valkey) {
@@ -566,13 +567,27 @@ export function registerActivityRoutes(
 
     // Paginate
     const items = allItems.slice(0, limitParam);
+    const enrichedItems = await enrichRsvpItems(items, valkey);
     const hasMore = Object.keys(newCursors).length > 0;
 
     const compositeCursor = hasMore
       ? Buffer.from(JSON.stringify({ cursors: newCursors }), 'utf-8').toString('base64url')
       : null;
 
-    return reply.send({ items, cursor: compositeCursor, hasMore });
+    const availableCategories = [
+      ...new Set(
+        stats
+          .map((stat) => registry.find((e) => e.id === stat.appId)?.category)
+          .filter((c): c is string => c !== undefined),
+      ),
+    ];
+
+    return reply.send({
+      items: enrichedItems,
+      cursor: compositeCursor,
+      hasMore,
+      availableCategories,
+    });
   });
 
   // POST /api/privacy/suppress -- GDPR erasure endpoint (no auth required)
