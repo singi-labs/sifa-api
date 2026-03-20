@@ -134,4 +134,8 @@ export async function suppressDid(db: Database, valkey: ValkeyClient, did: strin
   if (activityKeys.length > 0) {
     await valkey.del(...activityKeys);
   }
+  const heatmapKeys = await valkey.keys(`heatmap:${did}:*`);
+  if (heatmapKeys.length > 0) {
+    await valkey.del(...heatmapKeys);
+  }
 }

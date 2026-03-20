@@ -159,9 +159,13 @@ async function fetchAllPdsItems(
       signal: AbortSignal.timeout(5000),
     });
 
+    let reachedEnd = false;
     for (const rec of res.data.records) {
       const createdAt = extractCreatedAt(rec.value);
-      if (new Date(createdAt) < since) continue; // skip older records
+      if (new Date(createdAt) < since) {
+        reachedEnd = true;
+        break;
+      }
       allItems.push({
         uri: rec.uri,
         collection,
@@ -174,7 +178,7 @@ async function fetchAllPdsItems(
       });
     }
 
-    if (!res.data.cursor || res.data.records.length < 100) break;
+    if (reachedEnd || !res.data.cursor || res.data.records.length < 100) break;
     cursor = res.data.cursor;
   }
 
@@ -195,7 +199,8 @@ export function registerHeatmapRoutes(
     Querystring: { days?: string };
   }>('/api/activity/:handleOrDid/heatmap', async (request, reply) => {
     const { handleOrDid } = request.params;
-    const daysParam = Math.min(Math.max(parseInt(request.query.days ?? '180', 10) || 180, 1), 730);
+    const parsed = parseInt(request.query.days ?? '180', 10);
+    const daysParam = Math.min(Math.max(isNaN(parsed) ? 180 : parsed, 1), 730);
 
     const did = await resolveHandleOrDid(db, handleOrDid);
     if (!did) {
@@ -227,8 +232,10 @@ export function registerHeatmapRoutes(
 
     const pdsHost = await resolvePdsHost(did);
 
-    // Build fetch promises for all visible apps
-    const fetchPromises = stats.map((stat) => {
+    // Build fetch promises for all visible apps (cap to prevent DoS amplification)
+    const MAX_APPS_FOR_HEATMAP = 10;
+    const targetStats = stats.slice(0, MAX_APPS_FOR_HEATMAP);
+    const fetchPromises = targetStats.map((stat) => {
       const entry = registry.find((e) => e.id === stat.appId);
       if (!entry) return Promise.resolve([] as ActivityItem[]);
 
@@ -249,12 +256,10 @@ export function registerHeatmapRoutes(
       );
     });
 
-    const results = await Promise.allSettled(fetchPromises);
+    const results = await Promise.all(fetchPromises);
     const allItems: ActivityItem[] = [];
-    for (const result of results) {
-      if (result.status === 'fulfilled') {
-        allItems.push(...result.value);
-      }
+    for (const items of results) {
+      allItems.push(...items);
     }
 
     const days = aggregateByDay(allItems);
