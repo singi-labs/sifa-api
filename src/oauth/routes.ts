@@ -113,7 +113,13 @@ export function registerOAuthRoutes(
         return reply.status(503).send({ error: 'Unavailable', message: 'OAuth not configured' });
       }
 
-      const { session } = await oauthClient.callback(params);
+      let session;
+      try {
+        ({ session } = await oauthClient.callback(params));
+      } catch (err) {
+        app.log.error({ err }, 'OAuth callback failed (upstream error)');
+        return reply.redirect('/login?error=upstream');
+      }
       const did = session.did;
 
       // Create a secure session ID (not the DID)
