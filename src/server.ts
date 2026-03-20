@@ -152,7 +152,7 @@ export async function buildServer(config: Env) {
   registerOAuthMetadata(app, config);
   registerOAuthRoutes(app, db, oauthClient);
   registerProfileRoutes(app, db, valkey);
-  registerProfileWriteRoutes(app, db, oauthClient, storage);
+  registerProfileWriteRoutes(app, db, oauthClient, storage, valkey);
   registerImportRoutes(app, db, oauthClient);
   registerFollowRoutes(app, db, oauthClient);
   registerSearchRoutes(app, db);

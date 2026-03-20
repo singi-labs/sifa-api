@@ -119,6 +119,13 @@ describe('atproto-app-registry', () => {
       expect(result?.id).toBe('roomy');
     });
 
+    it('maps dev.keytrace.claim to keytrace via scanCollections', () => {
+      const result = getAppForCollection('dev.keytrace.claim');
+      expect(result).toBeDefined();
+      expect(result?.id).toBe('keytrace');
+      expect(result?.matchedPrefix).toBe('dev.keytrace');
+    });
+
     it('returns undefined for unknown collections', () => {
       const result = getAppForCollection('com.unknown.something');
       expect(result).toBeUndefined();
