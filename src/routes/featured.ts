@@ -121,8 +121,18 @@ export function registerFeaturedRoutes(
         : null;
 
     const resolved = resolveProfileFields(
-      { headline: profile.headline, about: profile.about },
-      { headline: profile.headlineOverride, about: profile.aboutOverride },
+      {
+        headline: profile.headline,
+        about: profile.about,
+        displayName: profile.displayName,
+        avatarUrl: profile.avatarUrl,
+      },
+      {
+        headline: profile.headlineOverride,
+        about: profile.aboutOverride,
+        displayName: profile.displayNameOverride,
+        avatarUrl: profile.avatarUrlOverride,
+      },
     );
 
     // Build location string
@@ -136,8 +146,8 @@ export function registerFeaturedRoutes(
     const response = {
       did: profile.did,
       handle: profile.handle,
-      displayName: profile.displayName,
-      avatar: profile.avatarUrl,
+      displayName: resolved.displayName,
+      avatar: resolved.avatarUrl,
       pronouns,
       headline: resolved.headline,
       about: resolved.about,
