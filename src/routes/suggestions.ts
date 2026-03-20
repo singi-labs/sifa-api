@@ -68,27 +68,6 @@ export function registerSuggestionRoutes(
       conditions.push(notInArray(connections.subjectDid, dismissedDids));
     }
 
-    // Fetch suggestions with profile join to determine claimed status
-    const suggestions = await db
-      .select({
-        subjectDid: connections.subjectDid,
-        source: connections.source,
-        createdAt: connections.createdAt,
-        handle: profiles.handle,
-        displayName: profiles.displayName,
-        headline: profiles.headline,
-        avatarUrl: profiles.avatarUrl,
-        profileExists: sql<boolean>`${profiles.did} IS NOT NULL`,
-      })
-      .from(connections)
-      .leftJoin(profiles, eq(connections.subjectDid, profiles.did))
-      .where(and(...conditions))
-      .orderBy(connections.createdAt)
-      .limit(limit + 1); // +1 for cursor detection
-
-    const hasMore = suggestions.length > limit;
-    const items = hasMore ? suggestions.slice(0, limit) : suggestions;
-
     // Check dismissed status if including dismissed
     let dismissedSet = new Set<string>();
     if (includeDismissed) {
@@ -99,47 +78,72 @@ export function registerSuggestionRoutes(
       dismissedSet = new Set(dismissed.map((d) => d.subjectDid));
     }
 
-    // Determine claimed status by checking sessions table
-    let claimedSet = new Set<string>();
-    if (items.length > 0) {
-      const claimedDids = await db
-        .select({ did: sql<string>`DISTINCT did` })
-        .from(sql`sessions`)
-        .where(
-          sql`did IN (${sql.join(
-            items.map((i) => sql`${i.subjectDid}`),
-            sql`,`,
-          )})`,
-        );
-      claimedSet = new Set(claimedDids.map((r) => r.did));
-    }
+    // Query "On Sifa" suggestions separately (uncapped — these are high-value)
+    const onSifaConditions = [
+      ...conditions,
+      sql`${connections.subjectDid} IN (SELECT DISTINCT did FROM sessions)`,
+    ];
+    const onSifaRows = await db
+      .select({
+        subjectDid: connections.subjectDid,
+        source: connections.source,
+        handle: profiles.handle,
+        displayName: profiles.displayName,
+        headline: profiles.headline,
+        avatarUrl: profiles.avatarUrl,
+      })
+      .from(connections)
+      .leftJoin(profiles, eq(connections.subjectDid, profiles.did))
+      .where(and(...onSifaConditions));
 
-    const onSifa = items
-      .filter((i) => claimedSet.has(i.subjectDid))
-      .map((i) => ({
-        did: i.subjectDid,
-        handle: i.handle ?? '',
-        displayName: i.displayName ?? undefined,
-        headline: i.headline ?? undefined,
-        avatarUrl: i.avatarUrl ?? undefined,
-        source: i.source,
-        dismissed: dismissedSet.has(i.subjectDid),
-      }));
+    const onSifa = onSifaRows.map((i) => ({
+      did: i.subjectDid,
+      handle: i.handle ?? '',
+      displayName: i.displayName ?? undefined,
+      headline: i.headline ?? undefined,
+      avatarUrl: i.avatarUrl ?? undefined,
+      source: i.source,
+      dismissed: dismissedSet.has(i.subjectDid),
+    }));
 
-    const notOnSifa = items
-      .filter((i) => !claimedSet.has(i.subjectDid))
-      .map((i) => ({
-        did: i.subjectDid,
-        handle: i.handle ?? '',
-        displayName: i.displayName ?? undefined,
-        source: i.source,
-        dismissed: dismissedSet.has(i.subjectDid),
-      }));
+    // Query "Not on Sifa" suggestions (paginated)
+    const notOnSifaConditions = [
+      ...conditions,
+      sql`${connections.subjectDid} NOT IN (SELECT DISTINCT did FROM sessions)`,
+    ];
+    const notOnSifaRows = await db
+      .select({
+        subjectDid: connections.subjectDid,
+        source: connections.source,
+        createdAt: connections.createdAt,
+        handle: profiles.handle,
+        displayName: profiles.displayName,
+        avatarUrl: profiles.avatarUrl,
+      })
+      .from(connections)
+      .leftJoin(profiles, eq(connections.subjectDid, profiles.did))
+      .where(and(...notOnSifaConditions))
+      .orderBy(connections.createdAt)
+      .limit(limit + 1);
+
+    const hasMore = notOnSifaRows.length > limit;
+    const notOnSifaItems = hasMore ? notOnSifaRows.slice(0, limit) : notOnSifaRows;
+
+    const notOnSifa = notOnSifaItems.map((i) => ({
+      did: i.subjectDid,
+      handle: i.handle ?? '',
+      displayName: i.displayName ?? undefined,
+      avatarUrl: i.avatarUrl ?? undefined,
+      source: i.source,
+      dismissed: dismissedSet.has(i.subjectDid),
+    }));
 
     return reply.send({
       onSifa,
       notOnSifa,
-      cursor: hasMore ? items[items.length - 1]?.createdAt?.toISOString() : undefined,
+      cursor: hasMore
+        ? notOnSifaItems[notOnSifaItems.length - 1]?.createdAt?.toISOString()
+        : undefined,
     });
   });
 
