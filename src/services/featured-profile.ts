@@ -18,10 +18,13 @@ export function getTodayUtc(): string {
   return now.toISOString().slice(0, 10);
 }
 
+// Minimum number of profile-strength criteria (out of 8) to be eligible
+const MIN_CRITERIA = 7;
+
 /**
  * Selects a single random eligible profile that has not been previously featured.
  *
- * Eligibility criteria (all must be met):
+ * Scores each profile on 8 criteria and requires at least 7/8 (roughly 80%):
  * 1. Has avatar (not null, not empty)
  * 2. Has headline or headline_override (not null, not empty)
  * 3. Has about or about_override (not null, not empty)
@@ -46,22 +49,20 @@ export async function selectFeaturedProfile(db: Database): Promise<EligibleProfi
     .from(profiles)
     .where(
       sql`
-        ${profiles.avatarUrl} IS NOT NULL AND ${profiles.avatarUrl} != ''
-        AND (
-          (${profiles.headline} IS NOT NULL AND ${profiles.headline} != '')
-          OR (${profiles.headlineOverride} IS NOT NULL AND ${profiles.headlineOverride} != '')
-        )
-        AND (
-          (${profiles.about} IS NOT NULL AND ${profiles.about} != '')
-          OR (${profiles.aboutOverride} IS NOT NULL AND ${profiles.aboutOverride} != '')
-        )
-        AND ${profiles.handle} != 'gui.do'
+        ${profiles.handle} != 'gui.do'
         AND ${profiles.did} NOT IN (SELECT did FROM featured_profiles)
-        AND (SELECT count(*) FROM positions WHERE positions.did = ${profiles.did} AND positions.current = true) >= 1
-        AND (SELECT count(*) FROM positions WHERE positions.did = ${profiles.did} AND positions.current = false) >= 1
-        AND (SELECT count(*) FROM skills WHERE skills.did = ${profiles.did}) >= 3
-        AND (SELECT count(*) FROM education WHERE education.did = ${profiles.did}) >= 1
-        AND (SELECT count(*) FROM external_accounts WHERE external_accounts.did = ${profiles.did}) >= 1
+        AND (
+          CASE WHEN ${profiles.avatarUrl} IS NOT NULL AND ${profiles.avatarUrl} != '' THEN 1 ELSE 0 END
+          + CASE WHEN (${profiles.headline} IS NOT NULL AND ${profiles.headline} != '')
+                   OR (${profiles.headlineOverride} IS NOT NULL AND ${profiles.headlineOverride} != '') THEN 1 ELSE 0 END
+          + CASE WHEN (${profiles.about} IS NOT NULL AND ${profiles.about} != '')
+                   OR (${profiles.aboutOverride} IS NOT NULL AND ${profiles.aboutOverride} != '') THEN 1 ELSE 0 END
+          + CASE WHEN (SELECT count(*) FROM positions WHERE positions.did = ${profiles.did} AND positions.current = true) >= 1 THEN 1 ELSE 0 END
+          + CASE WHEN (SELECT count(*) FROM positions WHERE positions.did = ${profiles.did} AND positions.current = false) >= 1 THEN 1 ELSE 0 END
+          + CASE WHEN (SELECT count(*) FROM skills WHERE skills.did = ${profiles.did}) >= 3 THEN 1 ELSE 0 END
+          + CASE WHEN (SELECT count(*) FROM education WHERE education.did = ${profiles.did}) >= 1 THEN 1 ELSE 0 END
+          + CASE WHEN (SELECT count(*) FROM external_accounts WHERE external_accounts.did = ${profiles.did}) >= 1 THEN 1 ELSE 0 END
+        ) >= ${MIN_CRITERIA}
       `,
     )
     .orderBy(sql`random()`)
