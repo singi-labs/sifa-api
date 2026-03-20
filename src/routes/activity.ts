@@ -110,8 +110,8 @@ export interface EventMeta {
  */
 function parseAtUri(uri: string): { did: string; collection: string; rkey: string } | null {
   const match = /^at:\/\/(did:[^/]+)\/([^/]+)\/([^/]+)$/.exec(uri);
-  if (!match) return null;
-  return { did: match[1]!, collection: match[2]!, rkey: match[3]! };
+  if (!match || !match[1] || !match[2] || !match[3]) return null;
+  return { did: match[1], collection: match[2], rkey: match[3] };
 }
 
 /**
