@@ -26,7 +26,12 @@ export async function discoverFeedUrl(platform: string, url: string): Promise<st
 async function discoverYoutubeFeed(url: string): Promise<string | null> {
   try {
     const parsed = new URL(url);
-    if (!parsed.hostname.includes('youtube.com') && !parsed.hostname.includes('youtu.be')) {
+    if (
+      !parsed.hostname.endsWith('.youtube.com') &&
+      parsed.hostname !== 'youtube.com' &&
+      !parsed.hostname.endsWith('.youtu.be') &&
+      parsed.hostname !== 'youtu.be'
+    ) {
       return null;
     }
 
