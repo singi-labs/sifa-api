@@ -162,7 +162,7 @@ export async function buildServer(config: Env) {
   registerStatsRoutes(app, db, valkey);
   registerAdminStatsRoutes(app, db, valkey, oauthClient, config);
   registerLocationRoutes(app, config.GEONAMES_USERNAME);
-  registerActivityRoutes(app, db, oauthClient);
+  registerActivityRoutes(app, db, oauthClient, valkey);
   registerAppsRoutes(app, valkey);
   registerFeaturedRoutes(app, db, valkey);
 
