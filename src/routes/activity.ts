@@ -456,7 +456,8 @@ export function registerActivityRoutes(
     for (const result of results) {
       if (result.status === 'fulfilled') {
         allItems.push(...result.value.items);
-        if (result.value.cursor) {
+        // Only keep cursor if source returned a full page (likely has more)
+        if (result.value.cursor && result.value.items.length >= perAppLimit) {
           newCursors[result.value.collection] = result.value.cursor;
         }
       }
