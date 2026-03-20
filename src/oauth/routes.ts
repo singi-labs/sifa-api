@@ -6,8 +6,8 @@ import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
 import { sessions, profiles, oauthSessions } from '../db/schema/index.js';
-import { importBlueskyFollows } from '../services/bluesky-follows.js';
-import { importTangledFollows } from '../services/tangled-follows.js';
+import { fetchBlueskyFollowsFromPds, importBlueskyFollows } from '../services/bluesky-follows.js';
+import { fetchTangledFollowsFromPds, importTangledFollows } from '../services/tangled-follows.js';
 
 const loginSchema = z.object({
   handle: z.string().min(1).max(253),
@@ -175,50 +175,19 @@ export function registerOAuthRoutes(
       }
 
       // Import follows from Bluesky and Tangled (fire-and-forget, non-blocking)
+      // Uses PDS-native listRecords — works with any PDS, no AppView dependency.
       void (async () => {
         try {
           const agent = new Agent(session);
 
-          // Import Bluesky follows
-          const bskyFollows: Array<{ did: string; handle: string; createdAt: string }> = [];
-          let cursor: string | undefined;
-          do {
-            const res = await agent.getFollows({ actor: did, limit: 100, cursor });
-            for (const f of res.data.follows) {
-              bskyFollows.push({
-                did: f.did,
-                handle: f.handle,
-                createdAt: f.indexedAt ?? new Date().toISOString(),
-              });
-            }
-            cursor = res.data.cursor;
-          } while (cursor);
+          // Import Bluesky follows from PDS
+          const bskyFollows = await fetchBlueskyFollowsFromPds(agent, did);
           await importBlueskyFollows(db, did, bskyFollows);
           app.log.info({ did, count: bskyFollows.length }, 'Imported Bluesky follows');
 
-          // Import Tangled follows (read from user's PDS repo)
+          // Import Tangled follows from PDS
           try {
-            const tangledFollows: Array<{ did: string; handle: string; createdAt: string }> = [];
-            let tangledCursor: string | undefined;
-            do {
-              const res = await agent.com.atproto.repo.listRecords({
-                repo: did,
-                collection: 'sh.tangled.graph.follow',
-                limit: 100,
-                cursor: tangledCursor,
-              });
-              for (const record of res.data.records) {
-                const val = record.value as { subject?: string; createdAt?: string };
-                if (val.subject) {
-                  tangledFollows.push({
-                    did: val.subject,
-                    handle: '', // We don't have the handle from PDS records
-                    createdAt: val.createdAt ?? new Date().toISOString(),
-                  });
-                }
-              }
-              tangledCursor = res.data.cursor;
-            } while (tangledCursor);
+            const tangledFollows = await fetchTangledFollowsFromPds(agent, did);
             await importTangledFollows(db, did, tangledFollows);
             app.log.info({ did, count: tangledFollows.length }, 'Imported Tangled follows');
           } catch (err) {

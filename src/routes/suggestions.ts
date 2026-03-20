@@ -1,10 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
+import { Agent } from '@atproto/api';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import type { Database } from '../db/index.js';
 import { connections, profiles, suggestionDismissals, invites } from '../db/schema/index.js';
 import { and, eq, ne, notInArray, sql, count, gt } from 'drizzle-orm';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
+import { fetchBlueskyFollowsFromPds, importBlueskyFollows } from '../services/bluesky-follows.js';
+import { fetchTangledFollowsFromPds, importTangledFollows } from '../services/tangled-follows.js';
 
 const dismissSchema = z.object({
   subjectDid: z.string().startsWith('did:'),
@@ -211,6 +214,44 @@ export function registerSuggestionRoutes(
         );
 
       return reply.status(200).send({ status: 'ok' });
+    },
+  );
+
+  // POST /api/suggestions/sync -- re-import follows from PDS
+  app.post(
+    '/api/suggestions/sync',
+    { preHandler: requireAuth, config: { rateLimit: { max: 3, timeWindow: '1 minute' } } },
+    async (request, reply) => {
+      const { did, session } = getAuthContext(request);
+      const agent = new Agent(session);
+
+      let blueskyCount = 0;
+      let tangledCount = 0;
+
+      // Import Bluesky follows
+      try {
+        const bskyFollows = await fetchBlueskyFollowsFromPds(agent, did);
+        await importBlueskyFollows(db, did, bskyFollows);
+        blueskyCount = bskyFollows.length;
+        app.log.info({ did, count: blueskyCount }, 'Synced Bluesky follows');
+      } catch (err) {
+        app.log.error({ err, did }, 'Bluesky follow sync failed');
+      }
+
+      // Import Tangled follows
+      try {
+        const tangledFollows = await fetchTangledFollowsFromPds(agent, did);
+        await importTangledFollows(db, did, tangledFollows);
+        tangledCount = tangledFollows.length;
+        app.log.info({ did, count: tangledCount }, 'Synced Tangled follows');
+      } catch (err) {
+        app.log.debug({ err, did }, 'Tangled follow sync skipped or failed');
+      }
+
+      return reply.send({
+        status: 'ok',
+        imported: { bluesky: blueskyCount, tangled: tangledCount },
+      });
     },
   );
 
