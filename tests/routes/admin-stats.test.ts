@@ -80,7 +80,7 @@ describe('Admin stats signups endpoint', () => {
     dbQueryResults = [];
   });
 
-  it('GET /api/admin/stats/signups returns signup data with default days=30', async () => {
+  it('GET /api/admin/stats/signups returns signup data with gap-filled dates', async () => {
     // Query order: 1) total count, 2) signup rows, 3) prior count
     dbQueryResults = [
       [{ value: 42 }], // total
@@ -100,12 +100,19 @@ describe('Admin stats signups endpoint', () => {
 
     const body = res.json();
     expect(body.totalUsers).toBe(42);
-    expect(body.signups).toHaveLength(2);
-    expect(body.signups[0]).toEqual({ date: '2026-03-14', count: 3, cumulative: 40 });
-    expect(body.signups[1]).toEqual({ date: '2026-03-15', count: 2, cumulative: 42 });
+    // Should have all 31 days (today - 30 days through today), not just 2
+    expect(body.signups.length).toBeGreaterThan(2);
+    const mar14 = body.signups.find((s: { date: string }) => s.date === '2026-03-14');
+    const mar15 = body.signups.find((s: { date: string }) => s.date === '2026-03-15');
+    expect(mar14).toEqual({ date: '2026-03-14', count: 3, cumulative: 40 });
+    expect(mar15).toEqual({ date: '2026-03-15', count: 2, cumulative: 42 });
+    // Zero-count days should exist with count 0
+    const mar13 = body.signups.find((s: { date: string }) => s.date === '2026-03-13');
+    expect(mar13).toBeDefined();
+    expect(mar13.count).toBe(0);
   });
 
-  it('GET /api/admin/stats/signups?days=0 returns all-time data with cumulative starting at 0', async () => {
+  it('GET /api/admin/stats/signups?days=0 returns all-time data with gap-filled dates', async () => {
     // days=0: 1) total count, 2) signup rows (no prior count query)
     dbQueryResults = [
       [{ value: 30 }],
@@ -124,8 +131,14 @@ describe('Admin stats signups endpoint', () => {
 
     const body = res.json();
     expect(body.totalUsers).toBe(30);
-    expect(body.signups[0]).toEqual({ date: '2026-01-01', count: 10, cumulative: 10 });
-    expect(body.signups[1]).toEqual({ date: '2026-02-01', count: 20, cumulative: 30 });
+    // Should have all dates from Jan 1 to today, not just 2
+    expect(body.signups.length).toBeGreaterThan(2);
+    const jan1 = body.signups.find((s: { date: string }) => s.date === '2026-01-01');
+    const feb1 = body.signups.find((s: { date: string }) => s.date === '2026-02-01');
+    expect(jan1).toEqual({ date: '2026-01-01', count: 10, cumulative: 10 });
+    expect(feb1).toEqual({ date: '2026-02-01', count: 20, cumulative: 30 });
+    // First entry should be Jan 1, last should be today
+    expect(body.signups[0].date).toBe('2026-01-01');
   });
 
   it('rejects invalid days parameter', async () => {

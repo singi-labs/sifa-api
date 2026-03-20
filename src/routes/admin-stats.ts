@@ -19,6 +19,43 @@ import { createAdminMiddleware } from '../middleware/admin.js';
 
 const CACHE_TTL = 300; // 5 minutes
 
+/** Generate all YYYY-MM-DD strings from startDate to endDate (inclusive). */
+function allDatesBetween(startDate: string, endDate: string): string[] {
+  const dates: string[] = [];
+  const current = new Date(startDate + 'T00:00:00Z');
+  const end = new Date(endDate + 'T00:00:00Z');
+  while (current <= end) {
+    dates.push(current.toISOString().slice(0, 10));
+    current.setUTCDate(current.getUTCDate() + 1);
+  }
+  return dates;
+}
+
+/** Fill missing dates in a sparse array with a default record. */
+function fillDateGaps<T extends { date: string }>(
+  rows: T[],
+  days: number,
+  defaults: Omit<T, 'date'>,
+): T[] {
+  if (rows.length === 0 && days === 0) return rows;
+
+  const today = new Date().toISOString().slice(0, 10);
+  let startDate: string;
+  if (days > 0) {
+    const start = new Date();
+    start.setUTCDate(start.getUTCDate() - days);
+    startDate = start.toISOString().slice(0, 10);
+  } else {
+    startDate = rows.length > 0 ? rows[0]!.date : today;
+  }
+  const endDate = today;
+
+  const lookup = new Map(rows.map((r) => [r.date, r]));
+  return allDatesBetween(startDate, endDate).map(
+    (date) => lookup.get(date) ?? ({ date, ...defaults } as T),
+  );
+}
+
 const querySchema = z.object({
   days: z.enum(['7', '30', '90', '0']).default('30'),
 });
@@ -104,6 +141,9 @@ export function registerAdminStatsRoutes(
         signupRows = rows.map((r) => ({ date: String(r.date), count: r.count }));
       }
 
+      // Fill in missing dates with zero counts
+      const filledRows = fillDateGaps(signupRows, days, { count: 0 });
+
       // For windowed queries, get count of users before the window
       // so cumulative reflects the real total at each date
       let priorCount = 0;
@@ -117,7 +157,7 @@ export function registerAdminStatsRoutes(
 
       // Build cumulative
       let running = priorCount;
-      const signups: SignupEntry[] = signupRows.map((row) => {
+      const signups: SignupEntry[] = filledRows.map((row) => {
         running += row.count;
         return { date: row.date, count: row.count, cumulative: running };
       });
@@ -321,7 +361,8 @@ export function registerAdminStatsRoutes(
         .groupBy(sql`DATE(${profiles.lastActiveAt})`)
         .orderBy(sql`DATE(${profiles.lastActiveAt})`);
 
-      const daily = dauRows.map((r) => ({ date: String(r.date), count: r.count }));
+      const dailySparse = dauRows.map((r) => ({ date: String(r.date), count: r.count }));
+      const daily = fillDateGaps(dailySparse, dauDays, { count: 0 });
 
       // MAU: count distinct users active per month (last 12 months max)
       const mauRows = await db
@@ -445,12 +486,17 @@ export function registerAdminStatsRoutes(
         .groupBy(sql`DATE(${linkedinImports.createdAt})`)
         .orderBy(sql`DATE(${linkedinImports.createdAt})`);
 
-      const daily = rows.map((r) => ({
+      const dailySparse = rows.map((r) => ({
         date: String(r.date),
         successCount: Number(r.successCount),
         failureCount: Number(r.failureCount),
         totalItems: Number(r.totalItems),
       }));
+      const daily = fillDateGaps(dailySparse, importDays, {
+        successCount: 0,
+        failureCount: 0,
+        totalItems: 0,
+      });
 
       const totalImports = daily.reduce((s, d) => s + d.successCount + d.failureCount, 0);
       const totalSuccess = daily.reduce((s, d) => s + d.successCount, 0);
