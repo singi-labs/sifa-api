@@ -16,6 +16,8 @@ import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
 import { discoverFeedUrl, fetchFeedItems } from '../services/feed-discovery.js';
 import { checkAndStoreVerification, isVerifiablePlatform } from '../services/verification.js';
 import { indexRecord, deleteRecord } from '../services/record-indexer.js';
+import { fetchKeytraceClaims, mergeExternalAccounts } from '../services/keytrace.js';
+import { resolvePdsHost } from '../lib/pds-provider.js';
 
 const FEED_CACHE_TTL = 1800; // 30 minutes
 
@@ -277,21 +279,23 @@ export function registerExternalAccountRoutes(
         return reply.status(404).send({ error: 'NotFound', message: 'Profile not found' });
       }
 
-      const accounts = await db
-        .select()
-        .from(externalAccounts)
-        .where(eq(externalAccounts.did, profile.did));
+      // Fetch Sifa accounts + verifications and Keytrace claims in parallel
+      const pdsHost = profile.pdsHost ?? (await resolvePdsHost(profile.did));
 
-      const verifications = await db
-        .select()
-        .from(externalAccountVerifications)
-        .where(eq(externalAccountVerifications.did, profile.did));
+      const [accounts, verifications, keytraceClaims] = await Promise.all([
+        db.select().from(externalAccounts).where(eq(externalAccounts.did, profile.did)),
+        db
+          .select()
+          .from(externalAccountVerifications)
+          .where(eq(externalAccountVerifications.did, profile.did)),
+        pdsHost ? fetchKeytraceClaims(profile.did, pdsHost, valkey) : Promise.resolve([]),
+      ]);
 
       const verificationMap = new Map(
         verifications.map((v) => [v.url, { verified: v.verified, verifiedVia: v.verifiedVia }]),
       );
 
-      const result = accounts.map((acc) => {
+      const sifaAccounts = accounts.map((acc) => {
         const verification = verificationMap.get(acc.url);
         const verifiable = isVerifiablePlatform(acc.platform);
 
@@ -301,12 +305,20 @@ export function registerExternalAccountRoutes(
           url: acc.url,
           label: acc.label,
           feedUrl: acc.feedUrl,
-          primary: acc.isPrimary,
+          isPrimary: acc.isPrimary,
           verifiable,
           verified: verification?.verified ?? false,
           verifiedVia: verification?.verifiedVia ?? null,
         };
       });
+
+      const merged = mergeExternalAccounts(sifaAccounts, keytraceClaims);
+
+      // Map isPrimary to primary for backwards compatibility with frontend
+      const result = merged.map(({ isPrimary, ...rest }) => ({
+        ...rest,
+        primary: isPrimary,
+      }));
 
       return reply.send({ accounts: result });
     },

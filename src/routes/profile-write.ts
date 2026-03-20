@@ -3,6 +3,7 @@ import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { Agent } from '@atproto/api';
 import { z } from 'zod';
 import type { Database } from '../db/index.js';
+import type { ValkeyClient } from '../cache/index.js';
 import { eq } from 'drizzle-orm';
 import {
   profiles as profilesTable,
@@ -55,6 +56,7 @@ import {
 import { scanUserApps } from '../services/pds-scanner.js';
 import { upsertScanResults } from '../services/app-stats.js';
 import { resolvePdsHost } from '../lib/pds-provider.js';
+import { invalidateKeytraceCache } from '../services/keytrace.js';
 
 const overrideSchema = z.object({
   headline: z.string().max(300).nullish(),
@@ -67,6 +69,7 @@ export function registerProfileWriteRoutes(
   db: Database,
   oauthClient: NodeOAuthClient | null,
   storage: StorageService,
+  valkey: ValkeyClient | null,
 ) {
   const requireAuth = createAuthMiddleware(oauthClient, db);
 
@@ -969,6 +972,9 @@ export function registerProfileWriteRoutes(
       app.log.warn({ err, did }, 'Cross-app activity scan failed during profile sync');
       // Non-fatal — profile sync still succeeds even if activity scan fails
     }
+
+    // Invalidate Keytrace cache so next profile view fetches fresh claims
+    await invalidateKeytraceCache(did, valkey);
 
     return reply.send({ synced });
   });

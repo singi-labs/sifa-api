@@ -116,6 +116,15 @@ const APP_REGISTRY: AppRegistryEntry[] = [
     urlPattern: 'https://roomy.space',
     color: 'purple',
   },
+  {
+    id: 'keytrace',
+    name: 'Keytrace',
+    category: 'Links',
+    collectionPrefixes: ['dev.keytrace'],
+    scanCollections: ['dev.keytrace.claim'],
+    urlPattern: 'https://keytrace.dev/{handle}',
+    color: 'indigo',
+  },
 ];
 
 export const EXCLUDED_COLLECTIONS: string[] = [
