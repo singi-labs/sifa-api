@@ -333,11 +333,11 @@ export function registerActivityRoutes(
     const stats = await getVisibleAppStats(db, did);
     const registry = getAppsRegistry();
 
-    // Compute available categories from all visible active apps
+    // Compute available categories from all visible apps with recent activity
     const availableCategories = [
       ...new Set(
         stats
-          .filter((s) => s.isActive)
+          .filter((s) => s.recentCount > 0)
           .map((s) => registry.find((e) => e.id === s.appId)?.category)
           .filter((c): c is string => c !== undefined),
       ),
