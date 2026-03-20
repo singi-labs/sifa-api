@@ -104,4 +104,35 @@ describe('Follow routes', () => {
     expect(res.statusCode).toBe(503);
     expect(res.json().error).toBe('ServiceUnavailable');
   });
+
+  // --- GET /api/following ---
+
+  it('GET /api/following returns 401 without auth', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/following',
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.json().error).toBe('Unauthorized');
+  });
+
+  it('GET /api/following returns 503 with session but no OAuth client', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/following',
+      cookies: { session: 'test-session-id' },
+    });
+    expect(res.statusCode).toBe(503);
+    expect(res.json().error).toBe('ServiceUnavailable');
+  });
+
+  it('GET /api/following accepts source query param', async () => {
+    const res = await app.inject({
+      method: 'GET',
+      url: '/api/following?source=sifa',
+      cookies: { session: 'test-session-id' },
+    });
+    // 503 because no OAuth client, but route is registered and accepts the param
+    expect(res.statusCode).toBe(503);
+  });
 });

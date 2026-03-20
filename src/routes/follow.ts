@@ -2,8 +2,8 @@ import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import type { Database } from '../db/index.js';
-import { connections } from '../db/schema/index.js';
-import { and, eq } from 'drizzle-orm';
+import { connections, profiles } from '../db/schema/index.js';
+import { and, eq, lt, sql } from 'drizzle-orm';
 import {
   generateTid,
   buildApplyWritesOp,
@@ -12,6 +12,7 @@ import {
   handlePdsError,
 } from '../services/pds-writer.js';
 import { createAuthMiddleware, getAuthContext } from '../middleware/auth.js';
+import { fetchProfilesFromBluesky } from '../services/profile-resolver.js';
 
 const followSchema = z.object({
   subjectDid: z.string().startsWith('did:'),
@@ -110,4 +111,87 @@ export function registerFollowRoutes(
       return reply.status(200).send({ status: 'ok' });
     },
   );
+
+  // GET /api/following -- list everyone the authenticated user follows
+  app.get('/api/following', { preHandler: requireAuth }, async (request, reply) => {
+    const { did } = getAuthContext(request);
+    const query = request.query as {
+      source?: string;
+      cursor?: string;
+      limit?: string;
+    };
+
+    const source = query.source;
+    const limit = Math.min(parseInt(query.limit ?? '20', 10) || 20, 50);
+
+    const conditions = [eq(connections.followerDid, did)];
+    if (source) {
+      const validSources = ['sifa', 'bluesky', 'tangled'] as const;
+      if (!validSources.includes(source as (typeof validSources)[number])) {
+        return reply.status(400).send({ error: 'InvalidRequest', message: 'Invalid source value' });
+      }
+      conditions.push(eq(connections.source, source));
+    }
+    if (query.cursor) {
+      const cursorDate = new Date(query.cursor);
+      if (isNaN(cursorDate.getTime())) {
+        return reply.status(400).send({ error: 'InvalidRequest', message: 'Invalid cursor value' });
+      }
+      conditions.push(lt(connections.createdAt, cursorDate));
+    }
+
+    const rows = await db
+      .select({
+        subjectDid: connections.subjectDid,
+        source: connections.source,
+        createdAt: connections.createdAt,
+        handle: profiles.handle,
+        displayName: profiles.displayName,
+        headline: profiles.headline,
+        avatarUrl: profiles.avatarUrl,
+      })
+      .from(connections)
+      .leftJoin(profiles, eq(connections.subjectDid, profiles.did))
+      .where(and(...conditions))
+      .orderBy(sql`${connections.createdAt} DESC`)
+      .limit(limit + 1);
+
+    const hasMore = rows.length > limit;
+    const items = hasMore ? rows.slice(0, limit) : rows;
+
+    // Enrich rows without profile data from Bluesky
+    const needEnrich = items.filter((r) => !r.handle).map((r) => r.subjectDid);
+    let enrichedMap = new Map<
+      string,
+      { did: string; handle: string; displayName?: string; avatarUrl?: string }
+    >();
+    if (needEnrich.length > 0) {
+      try {
+        const enriched = await fetchProfilesFromBluesky(needEnrich, app.log);
+        enrichedMap = new Map(enriched.map((p) => [p.did, p]));
+      } catch (err) {
+        app.log.warn({ err }, 'Failed to enrich following list from Bluesky');
+      }
+    }
+
+    const follows = items.map((r) => {
+      const bsky = enrichedMap.get(r.subjectDid);
+      const claimed = r.handle !== null;
+      return {
+        did: r.subjectDid,
+        handle: r.handle || bsky?.handle || '',
+        displayName: r.displayName ?? bsky?.displayName,
+        headline: r.headline ?? undefined,
+        avatarUrl: r.avatarUrl ?? bsky?.avatarUrl,
+        source: r.source,
+        claimed,
+        followedAt: r.createdAt.toISOString(),
+      };
+    });
+
+    return reply.send({
+      follows,
+      cursor: hasMore ? items[items.length - 1]?.createdAt?.toISOString() : undefined,
+    });
+  });
 }
