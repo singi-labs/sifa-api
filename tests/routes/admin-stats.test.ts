@@ -197,3 +197,83 @@ describe('Admin stats signups endpoint', () => {
     }
   });
 });
+
+describe('Admin stats user-locations endpoint', () => {
+  let app: FastifyInstance;
+
+  beforeEach(async () => {
+    app = Fastify({ logger: false });
+    app.decorateRequest('did', null);
+    app.decorateRequest('oauthSession', null);
+    dbQueryIndex = 0;
+    dbQueryResults = [];
+  });
+
+  it('GET /api/admin/stats/user-locations returns aggregated location points', async () => {
+    dbQueryResults = [
+      [
+        { countryCode: 'NL', locationCountry: 'Netherlands', locationCity: 'Amsterdam', count: 5 },
+        { countryCode: 'NL', locationCountry: 'Netherlands', locationCity: null, count: 3 },
+        { countryCode: 'US', locationCountry: 'United States', locationCity: 'New York', count: 2 },
+      ],
+    ];
+    const db = makeDb();
+
+    const { registerAdminStatsRoutes } = await import('../../src/routes/admin-stats.js');
+    registerAdminStatsRoutes(app, db as never, null, null, makeConfig());
+
+    const res = await app.inject({ method: 'GET', url: '/api/admin/stats/user-locations' });
+    expect(res.statusCode).toBe(200);
+
+    const body = res.json();
+    expect(body.locations).toHaveLength(3);
+    // Sorted by count descending
+    expect(body.locations[0].count).toBe(5);
+    expect(body.locations[0].label).toBe('Amsterdam, Netherlands');
+    expect(body.locations[1].count).toBe(3);
+    expect(body.locations[1].label).toBe('Netherlands');
+    expect(body.locations[2].count).toBe(2);
+    expect(body.locations[2].label).toBe('New York, United States');
+    // All should have coordinates
+    for (const loc of body.locations) {
+      expect(typeof loc.lat).toBe('number');
+      expect(typeof loc.lng).toBe('number');
+    }
+  });
+
+  it('skips profiles with unknown country codes', async () => {
+    dbQueryResults = [
+      [
+        { countryCode: 'XX', locationCountry: 'Unknown', locationCity: null, count: 1 },
+        { countryCode: 'DE', locationCountry: 'Germany', locationCity: null, count: 2 },
+      ],
+    ];
+    const db = makeDb();
+
+    const { registerAdminStatsRoutes } = await import('../../src/routes/admin-stats.js');
+    registerAdminStatsRoutes(app, db as never, null, null, makeConfig());
+
+    const res = await app.inject({ method: 'GET', url: '/api/admin/stats/user-locations' });
+    expect(res.statusCode).toBe(200);
+
+    const body = res.json();
+    expect(body.locations).toHaveLength(1);
+    expect(body.locations[0].label).toBe('Germany');
+  });
+
+  it('returns cached response from Valkey', async () => {
+    const cachedResponse = JSON.stringify({
+      locations: [{ lat: 52.13, lng: 5.29, count: 10, label: 'Netherlands' }],
+    });
+    const db = makeDb();
+    const valkey = createMockValkey(cachedResponse);
+
+    const { registerAdminStatsRoutes } = await import('../../src/routes/admin-stats.js');
+    registerAdminStatsRoutes(app, db as never, valkey, null, makeConfig());
+
+    const res = await app.inject({ method: 'GET', url: '/api/admin/stats/user-locations' });
+    expect(res.statusCode).toBe(200);
+    expect(res.json()).toEqual(JSON.parse(cachedResponse));
+    expect(valkey.get).toHaveBeenCalledWith('admin:stats:user-locations');
+  });
+});

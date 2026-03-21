@@ -1,4 +1,4 @@
-import { count, desc, sql, gte, eq } from 'drizzle-orm';
+import { count, desc, sql, gte, eq, isNotNull, or } from 'drizzle-orm';
 import { z } from 'zod';
 import type { FastifyInstance } from 'fastify';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
@@ -14,6 +14,7 @@ import {
   certifications,
 } from '../db/schema/index.js';
 import { mapPdsHostToProvider } from '../lib/pds-provider.js';
+import { COUNTRY_CENTROIDS } from '../lib/country-centroids.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
 import { createAdminMiddleware } from '../middleware/admin.js';
 
@@ -512,4 +513,92 @@ export function registerAdminStatsRoutes(
       return reply.send(response);
     },
   );
+
+  app.get(
+    '/api/admin/stats/user-locations',
+    { preHandler: [requireAuth, requireAdmin] },
+    async (_request, reply) => {
+      const cacheKey = 'admin:stats:user-locations';
+
+      if (valkey) {
+        const cached = await valkey.get(cacheKey);
+        if (cached !== null) {
+          return reply.send(JSON.parse(cached));
+        }
+      }
+
+      // Aggregate profiles by country_code + location_city
+      const rows = await db
+        .select({
+          countryCode: profiles.countryCode,
+          locationCountry: profiles.locationCountry,
+          locationCity: profiles.locationCity,
+          count: count().as('count'),
+        })
+        .from(profiles)
+        .where(or(isNotNull(profiles.countryCode), isNotNull(profiles.locationCountry)))
+        .groupBy(profiles.countryCode, profiles.locationCountry, profiles.locationCity);
+
+      interface LocationPoint {
+        lat: number;
+        lng: number;
+        count: number;
+        label: string;
+      }
+
+      // Merge rows into coordinate-based points.
+      // City-level rows get a small offset from the country centroid to avoid
+      // perfect overlap, while country-only rows use the centroid directly.
+      const pointMap = new Map<string, LocationPoint>();
+
+      for (const row of rows) {
+        const code = row.countryCode?.toUpperCase() ?? '';
+        const centroid = code ? COUNTRY_CENTROIDS[code] : null;
+        if (!centroid) continue;
+
+        const city = row.locationCity?.trim() ?? '';
+        const country = row.locationCountry?.trim() ?? code;
+
+        // Build a dedup key: country+city
+        const key = `${code}:${city.toLowerCase()}`;
+        const label = city ? `${city}, ${country}` : country;
+
+        const existing = pointMap.get(key);
+        if (existing) {
+          existing.count += row.count;
+        } else {
+          // Use centroid for country-only; offset slightly for cities
+          // so multiple cities within the same country don't stack perfectly.
+          let lat = centroid.lat;
+          let lng = centroid.lng;
+          if (city) {
+            // Deterministic offset based on city name hash
+            const hash = simpleHash(key);
+            lat += ((hash % 100) - 50) * 0.05;
+            lng += (((hash >> 8) % 100) - 50) * 0.05;
+          }
+          pointMap.set(key, { lat, lng, count: row.count, label });
+        }
+      }
+
+      const locations = Array.from(pointMap.values()).sort((a, b) => b.count - a.count);
+
+      const response = { locations };
+
+      if (valkey) {
+        await valkey.setex(cacheKey, CACHE_TTL, JSON.stringify(response));
+      }
+
+      return reply.send(response);
+    },
+  );
+}
+
+/** Simple string hash for deterministic city coordinate offsets. */
+function simpleHash(str: string): number {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = ((hash << 5) - hash + str.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
 }
