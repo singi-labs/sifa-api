@@ -208,6 +208,16 @@ export async function enrichRsvpItems(
 }
 
 /**
+ * Merge resolved embed (with thumb URLs) from the Bluesky AppView into
+ * the raw record. The raw record only has blob refs for images; the
+ * AppView response includes resolved CDN URLs in item.post.embed.
+ */
+function mergeResolvedEmbed(record: unknown, embed: unknown): unknown {
+  if (!embed || typeof record !== 'object' || record === null) return record;
+  return { ...(record as Record<string, unknown>), embed };
+}
+
+/**
  * Fetch recent items from Bluesky via the public AppView API.
  */
 async function fetchBlueskyItems(did: string, limit: number): Promise<ActivityItem[]> {
@@ -222,7 +232,7 @@ async function fetchBlueskyItems(did: string, limit: number): Promise<ActivityIt
       uri: item.post.uri,
       collection: 'app.bsky.feed.post',
       rkey: extractRkey(item.post.uri),
-      record: item.post.record,
+      record: mergeResolvedEmbed(item.post.record, item.post.embed),
       appId: 'bluesky',
       appName: 'Bluesky',
       category: 'Posts',
@@ -293,7 +303,7 @@ async function fetchBlueskyFeedPaginated(
       uri: item.post.uri,
       collection: 'app.bsky.feed.post',
       rkey: extractRkey(item.post.uri),
-      record: item.post.record,
+      record: mergeResolvedEmbed(item.post.record, item.post.embed),
       appId: 'bluesky',
       appName: 'Bluesky',
       category: 'Posts',
