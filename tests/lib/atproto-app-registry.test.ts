@@ -163,8 +163,20 @@ describe('atproto-app-registry', () => {
       expect(EXCLUDED_COLLECTIONS).toContain('net.alternativeproto.vote');
     });
 
-    it('has exactly 10 entries', () => {
-      expect(EXCLUDED_COLLECTIONS).toHaveLength(10);
+    it('includes popfeed like', () => {
+      expect(EXCLUDED_COLLECTIONS).toContain('social.popfeed.feed.like');
+    });
+
+    it('includes popfeed challenge participation', () => {
+      expect(EXCLUDED_COLLECTIONS).toContain('social.popfeed.challenge.participation');
+    });
+
+    it('includes popfeed actor profile', () => {
+      expect(EXCLUDED_COLLECTIONS).toContain('social.popfeed.actor.profile');
+    });
+
+    it('has exactly 13 entries', () => {
+      expect(EXCLUDED_COLLECTIONS).toHaveLength(13);
     });
   });
 });

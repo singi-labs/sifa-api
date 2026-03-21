@@ -126,6 +126,19 @@ const APP_REGISTRY: AppRegistryEntry[] = [
     color: 'indigo',
   },
   {
+    id: 'popfeed',
+    name: 'Popfeed',
+    category: 'Reviews',
+    collectionPrefixes: ['social.popfeed', 'app.popsky'],
+    scanCollections: [
+      'social.popfeed.feed.review',
+      'social.popfeed.feed.post',
+      'social.popfeed.feed.list',
+    ],
+    urlPattern: 'https://popfeed.social/profile/{handle}',
+    color: 'red',
+  },
+  {
     id: 'kipclip',
     name: 'KipClip',
     category: 'Links',
@@ -147,6 +160,9 @@ export const EXCLUDED_COLLECTIONS: string[] = [
   'sh.tangled.feed.star',
   'fyi.unravel.frontpage.vote',
   'net.alternativeproto.vote',
+  'social.popfeed.feed.like',
+  'social.popfeed.challenge.participation',
+  'social.popfeed.actor.profile',
 ];
 
 export function getAppsRegistry(): AppRegistryEntry[] {
