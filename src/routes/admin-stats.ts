@@ -14,7 +14,7 @@ import {
   certifications,
 } from '../db/schema/index.js';
 import { mapPdsHostToProvider } from '../lib/pds-provider.js';
-import { COUNTRY_CENTROIDS } from '../lib/country-centroids.js';
+import { COUNTRY_CENTROIDS, resolveCountryCode } from '../lib/country-centroids.js';
 import { createAuthMiddleware } from '../middleware/auth.js';
 import { createAdminMiddleware } from '../middleware/admin.js';
 
@@ -552,8 +552,9 @@ export function registerAdminStatsRoutes(
       const pointMap = new Map<string, LocationPoint>();
 
       for (const row of rows) {
-        const code = row.countryCode?.toUpperCase() ?? '';
-        const centroid = code ? COUNTRY_CENTROIDS[code] : null;
+        const code = resolveCountryCode(row.countryCode, row.locationCountry);
+        if (!code) continue;
+        const centroid = COUNTRY_CENTROIDS[code];
         if (!centroid) continue;
 
         const city = row.locationCity?.trim() ?? '';
