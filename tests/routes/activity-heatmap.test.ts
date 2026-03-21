@@ -1,11 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ActivityItem } from '../../src/routes/activity.js';
-import {
-  aggregateByDay,
-  computeThresholds,
-  type HeatmapDay,
-  type HeatmapResponse,
-} from '../../src/routes/activity-heatmap.js';
+import { aggregateByDay, computeThresholds } from '../../src/routes/activity-heatmap.js';
 
 function makeItem(appId: string, appName: string, category: string, date: string): ActivityItem {
   return {

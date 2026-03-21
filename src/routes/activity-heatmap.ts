@@ -39,9 +39,9 @@ export function computeThresholds(dayCounts: number[]): [number, number, number,
     const pos = q * (sorted.length - 1);
     const lower = Math.floor(pos);
     const upper = Math.ceil(pos);
-    if (lower === upper) return sorted[lower]!;
+    if (lower === upper) return sorted[lower] ?? 1;
     const weight = pos - lower;
-    return Math.round(sorted[lower]! * (1 - weight) + sorted[upper]! * weight);
+    return Math.round((sorted[lower] ?? 1) * (1 - weight) + (sorted[upper] ?? 1) * weight);
   };
 
   return [
