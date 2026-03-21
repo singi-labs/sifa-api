@@ -261,6 +261,42 @@ describe('Admin stats user-locations endpoint', () => {
     expect(body.locations[0].label).toBe('Germany');
   });
 
+  it('resolves country from name when country_code is null', async () => {
+    dbQueryResults = [
+      [
+        { countryCode: null, locationCountry: 'Deutschland', locationCity: 'Köln', count: 1 },
+        { countryCode: null, locationCountry: 'Switzerland', locationCity: 'Zürich', count: 1 },
+        { countryCode: null, locationCountry: 'Schweiz', locationCity: null, count: 1 },
+        { countryCode: null, locationCountry: 'Oslo, Oslo, Norway', locationCity: null, count: 1 },
+        {
+          countryCode: null,
+          locationCountry: 'Helsinki Metropolitan Area',
+          locationCity: null,
+          count: 1,
+        },
+      ],
+    ];
+    const db = makeDb();
+
+    const { registerAdminStatsRoutes } = await import('../../src/routes/admin-stats.js');
+    registerAdminStatsRoutes(app, db as never, null, null, makeConfig());
+
+    const res = await app.inject({ method: 'GET', url: '/api/admin/stats/user-locations' });
+    expect(res.statusCode).toBe(200);
+
+    const body = res.json();
+    const labels = body.locations.map((l: { label: string }) => l.label);
+    // Deutschland -> DE, Switzerland -> CH, Schweiz -> CH
+    expect(labels).toContain('Köln, Deutschland');
+    expect(labels).toContain('Zürich, Switzerland');
+    // Schweiz resolves to CH same as Switzerland
+    expect(labels).toContain('Schweiz');
+    // "Oslo, Oslo, Norway" should resolve Norway -> NO
+    expect(labels).toContain('Oslo, Oslo, Norway');
+    // "Helsinki Metropolitan Area" has no country match, should be skipped
+    expect(labels).not.toContain('Helsinki Metropolitan Area');
+  });
+
   it('returns cached response from Valkey', async () => {
     const cachedResponse = JSON.stringify({
       locations: [{ lat: 52.13, lng: 5.29, count: 10, label: 'Netherlands' }],
