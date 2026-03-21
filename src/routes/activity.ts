@@ -208,6 +208,16 @@ export async function enrichRsvpItems(
 }
 
 /**
+ * Merge resolved embed (with thumb URLs) from the Bluesky AppView into
+ * the raw record. The raw record only has blob refs for images; the
+ * AppView response includes resolved CDN URLs in item.post.embed.
+ */
+function mergeResolvedEmbed(record: unknown, embed: unknown): unknown {
+  if (!embed || typeof record !== 'object' || record === null) return record;
+  return { ...(record as Record<string, unknown>), embed };
+}
+
+/**
  * Fetch recent items from Bluesky via the public AppView API.
  */
 async function fetchBlueskyItems(did: string, limit: number): Promise<ActivityItem[]> {
@@ -222,7 +232,7 @@ async function fetchBlueskyItems(did: string, limit: number): Promise<ActivityIt
       uri: item.post.uri,
       collection: 'app.bsky.feed.post',
       rkey: extractRkey(item.post.uri),
-      record: item.post.record,
+      record: mergeResolvedEmbed(item.post.record, item.post.embed),
       appId: 'bluesky',
       appName: 'Bluesky',
       category: 'Posts',
@@ -293,7 +303,7 @@ async function fetchBlueskyFeedPaginated(
       uri: item.post.uri,
       collection: 'app.bsky.feed.post',
       rkey: extractRkey(item.post.uri),
-      record: item.post.record,
+      record: mergeResolvedEmbed(item.post.record, item.post.embed),
       appId: 'bluesky',
       appName: 'Bluesky',
       category: 'Posts',
@@ -446,19 +456,20 @@ export function registerActivityRoutes(
     const stats = await getVisibleAppStats(db, did);
     const registry = getAppsRegistry();
 
-    // Compute available categories from all visible apps the user has
-    // (a row exists in user_app_stats when the scanner found the collection in the PDS)
+    // Compute available categories from apps that actually have recent content
     const availableCategories = [
       ...new Set(
         stats
+          .filter((s) => s.recentCount > 0)
           .map((s) => registry.find((e) => e.id === s.appId)?.category)
           .filter((c): c is string => c !== undefined),
       ),
     ];
-    // Filter apps by category if specified
+    // Filter apps by category if specified, skipping apps with no recent content
+    const activeStats = stats.filter((s) => s.recentCount > 0);
     let targetApps: { stat: (typeof stats)[number]; entry: AppRegistryEntry }[];
     if (categoryParam === 'all') {
-      targetApps = stats
+      targetApps = activeStats
         .slice(0, 5)
         .map((stat) => {
           const entry = registry.find((e) => e.id === stat.appId);
@@ -466,7 +477,7 @@ export function registerActivityRoutes(
         })
         .filter((x): x is NonNullable<typeof x> => x !== null);
     } else {
-      targetApps = stats
+      targetApps = activeStats
         .map((stat) => {
           const entry = registry.find((e) => e.id === stat.appId);
           return entry && entry.category === categoryParam ? { stat, entry } : null;
