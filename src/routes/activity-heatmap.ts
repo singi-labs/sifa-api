@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { Agent } from '@atproto/api';
+import * as Sentry from '@sentry/node';
 import type { Database } from '../db/index.js';
 import type { ValkeyClient } from '../cache/index.js';
 import {
@@ -84,6 +85,12 @@ export function aggregateByDay(items: ActivityItem[]): HeatmapDay[] {
 /**
  * Fetch all PDS records for a given collection since a given date.
  */
+interface PdsFetchResult {
+  items: ActivityItem[];
+  truncated: boolean;
+  pagesUsed: number;
+}
+
 async function fetchAllPdsItems(
   pdsHost: string,
   did: string,
@@ -91,12 +98,14 @@ async function fetchAllPdsItems(
   entry: AppRegistryEntry,
   since: Date,
   maxPages: number,
-): Promise<ActivityItem[]> {
+): Promise<PdsFetchResult> {
   const agent = new Agent(`https://${pdsHost}`);
-  const allItems: ActivityItem[] = [];
+  const items: ActivityItem[] = [];
   let cursor: string | undefined;
+  let pagesUsed = 0;
 
   for (let page = 0; page < maxPages; page++) {
+    pagesUsed++;
     const params: { repo: string; collection: string; limit: number; cursor?: string } = {
       repo: did,
       collection,
@@ -115,7 +124,7 @@ async function fetchAllPdsItems(
         reachedEnd = true;
         break;
       }
-      allItems.push({
+      items.push({
         uri: rec.uri,
         collection,
         rkey: rec.uri.split('/').pop() ?? '',
@@ -127,11 +136,13 @@ async function fetchAllPdsItems(
       });
     }
 
-    if (reachedEnd || !res.data.cursor || res.data.records.length < 100) break;
+    if (reachedEnd || !res.data.cursor || res.data.records.length < 100) {
+      return { items, truncated: false, pagesUsed };
+    }
     cursor = res.data.cursor;
   }
 
-  return allItems;
+  return { items, truncated: true, pagesUsed };
 }
 
 export function registerHeatmapRoutes(
@@ -186,12 +197,13 @@ export function registerHeatmapRoutes(
     const targetStats = stats.slice(0, MAX_APPS_FOR_HEATMAP);
     const fetchPromises = targetStats.map((stat) => {
       const entry = registry.find((e) => e.id === stat.appId);
-      if (!entry) return Promise.resolve([] as ActivityItem[]);
+      const emptyResult: PdsFetchResult = { items: [], truncated: false, pagesUsed: 0 };
+      if (!entry) return Promise.resolve(emptyResult);
 
       // For the heatmap, always fetch from PDS via listRecords.
       // The AppView's getAuthorFeed mixes in reposts that get filtered,
       // wasting pages. PDS listRecords returns only the user's own records.
-      if (!pdsHost) return Promise.resolve([] as ActivityItem[]);
+      if (!pdsHost) return Promise.resolve(emptyResult);
 
       const collection = entry.id === 'bluesky' ? 'app.bsky.feed.post' : getCollectionForApp(entry);
       const pdsEntry =
@@ -202,15 +214,23 @@ export function registerHeatmapRoutes(
       return fetchAllPdsItems(pdsHost, did, collection, pdsEntry, since, maxPages).catch(
         (err: unknown) => {
           request.log.warn({ err, appId: entry.id }, 'Failed to fetch PDS items for heatmap');
-          return [] as ActivityItem[];
+          return { items: [] as ActivityItem[], truncated: false, pagesUsed: 0 };
         },
       );
     });
 
     const results = await Promise.all(fetchPromises);
     const allItems: ActivityItem[] = [];
-    for (const items of results) {
-      allItems.push(...items);
+    for (const result of results) {
+      allItems.push(...result.items);
+      if (result.truncated) {
+        const msg = `Heatmap truncated for ${did}: ${result.items.length} items in ${result.pagesUsed} pages did not reach ${since.toISOString()}`;
+        request.log.warn(msg);
+        Sentry.captureMessage(msg, {
+          level: 'warning',
+          extra: { did, daysParam, pagesUsed: result.pagesUsed, itemCount: result.items.length },
+        });
+      }
     }
 
     const days = aggregateByDay(allItems);
