@@ -228,7 +228,7 @@ export function registerHeatmapRoutes(
     const stats = await getVisibleAppStats(db, did);
     const registry = getAppsRegistry();
     const since = new Date(Date.now() - daysParam * 24 * 60 * 60 * 1000);
-    const maxPages = 5;
+    const maxPages = 30;
 
     const pdsHost = await resolvePdsHost(did);
 
