@@ -165,6 +165,7 @@ export function registerOAuthRoutes(
             handle: bskyProfile.data.handle,
             displayName: bskyProfile.data.displayName ?? null,
             avatarUrl: bskyProfile.data.avatar ?? null,
+            about: bskyProfile.data.description ?? null,
             createdAt: now,
           })
           .onConflictDoUpdate({
