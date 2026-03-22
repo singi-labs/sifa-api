@@ -9,12 +9,14 @@ vi.mock('../../src/lib/atproto-app-registry.js', () => ({
 
 // Mock @atproto/api
 const mockListRecords = vi.fn();
+const mockDescribeRepo = vi.fn();
 vi.mock('@atproto/api', () => {
   class MockAgent {
     com = {
       atproto: {
         repo: {
           listRecords: mockListRecords,
+          describeRepo: mockDescribeRepo,
         },
       },
     };
@@ -72,6 +74,8 @@ function makeRegistry(overrides: Partial<AppRegistryEntry>[] = []): AppRegistryE
 describe('scanUserApps', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Default: describeRepo fails so existing tests fall back to scanning all
+    mockDescribeRepo.mockRejectedValue(new Error('Not mocked'));
   });
 
   it('calls listRecords for each scan collection', async () => {
@@ -267,6 +271,10 @@ describe('scanUserApps', () => {
       },
     ]);
 
+    mockDescribeRepo.mockResolvedValue({
+      data: { collections: ['sh.tangled'] },
+    });
+
     mockListRecords.mockResolvedValue({
       data: { records: [], cursor: undefined },
     });
@@ -279,5 +287,82 @@ describe('scanUserApps', () => {
       }),
       expect.anything(),
     );
+  });
+
+  describe('describeRepo optimization', () => {
+    it('only scans collections that exist in the repo', async () => {
+      mockedGetAppsRegistry.mockReturnValue(makeRegistry());
+
+      // describeRepo says only whitewind collection exists
+      mockDescribeRepo.mockResolvedValue({
+        data: { collections: ['com.whtwnd.blog.entry'] },
+      });
+
+      mockListRecords.mockResolvedValue({
+        data: { records: [makeRecord(daysAgo(5))], cursor: undefined },
+      });
+
+      const results = await scanUserApps('https://pds.example.com', 'did:plc:test');
+
+      // Should only call listRecords for whitewind, not bluesky
+      expect(mockListRecords).toHaveBeenCalledTimes(1);
+      expect(mockListRecords).toHaveBeenCalledWith(
+        expect.objectContaining({ collection: 'com.whtwnd.blog.entry' }),
+        expect.anything(),
+      );
+
+      // Bluesky should be reported as inactive
+      const bluesky = results.find((r) => r.appId === 'bluesky');
+      expect(bluesky?.isActive).toBe(false);
+      expect(bluesky?.recentCount).toBe(0);
+
+      // Whitewind should be active
+      const whitewind = results.find((r) => r.appId === 'whitewind');
+      expect(whitewind?.isActive).toBe(true);
+    });
+
+    it('falls back to scanning all collections when describeRepo fails', async () => {
+      mockedGetAppsRegistry.mockReturnValue(makeRegistry());
+
+      // describeRepo throws an error
+      mockDescribeRepo.mockRejectedValue(new Error('Not implemented'));
+
+      mockListRecords.mockResolvedValue({
+        data: { records: [], cursor: undefined },
+      });
+
+      await scanUserApps('https://pds.example.com', 'did:plc:test');
+
+      // Should still call listRecords for both apps
+      expect(mockListRecords).toHaveBeenCalledWith(
+        expect.objectContaining({ collection: 'app.bsky.feed.post' }),
+        expect.anything(),
+      );
+      expect(mockListRecords).toHaveBeenCalledWith(
+        expect.objectContaining({ collection: 'com.whtwnd.blog.entry' }),
+        expect.anything(),
+      );
+    });
+
+    it('returns isActive false immediately for apps with no matching collections', async () => {
+      mockedGetAppsRegistry.mockReturnValue(makeRegistry());
+
+      // describeRepo returns empty collections array — user has nothing
+      mockDescribeRepo.mockResolvedValue({
+        data: { collections: [] },
+      });
+
+      const results = await scanUserApps('https://pds.example.com', 'did:plc:test');
+
+      // No listRecords calls at all
+      expect(mockListRecords).not.toHaveBeenCalled();
+
+      // Both apps inactive
+      for (const result of results) {
+        expect(result.isActive).toBe(false);
+        expect(result.recentCount).toBe(0);
+        expect(result.latestRecordAt).toBeNull();
+      }
+    });
   });
 });

@@ -128,9 +128,21 @@ export async function scanUserApps(pdsUrl: string, did: string): Promise<AppScan
   const agent = new Agent(pdsUrl);
   const registry = getAppsRegistry();
 
+  // Step 1: Discover which collections actually exist (1 API call)
+  let repoCollections: Set<string> | null = null;
+  try {
+    const desc = await agent.com.atproto.repo.describeRepo({ repo: did });
+    repoCollections = new Set(desc.data.collections ?? []);
+  } catch {
+    // describeRepo failed (old PDS, rate limit, etc.) — fall back to scanning all
+    repoCollections = null;
+  }
+
   const scanPromises = registry.map((app) => {
     const collections = getCollectionsForApp(app);
-    return scanApp(agent, did, app.id, collections);
+    const toScan =
+      repoCollections !== null ? collections.filter((c) => repoCollections.has(c)) : collections;
+    return scanApp(agent, did, app.id, toScan);
   });
 
   const results = await Promise.allSettled(scanPromises);
