@@ -1,6 +1,7 @@
 export { profiles } from './profiles.js';
 export { positions } from './positions.js';
 export { education } from './education.js';
+export { emailSubscriptions } from './email-subscriptions.js';
 export { skills } from './skills.js';
 export { connections } from './connections.js';
 export { sessions } from './sessions.js';

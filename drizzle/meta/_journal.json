@@ -141,6 +141,13 @@
       "when": 1774404000000,
       "tag": "0019_user_app_stats",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1742860800000,
+      "tag": "0020_email_subscriptions",
+      "breakpoints": true
     }
   ]
 }
