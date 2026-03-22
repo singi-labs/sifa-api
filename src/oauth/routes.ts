@@ -205,8 +205,8 @@ export function registerOAuthRoutes(
         }
       })();
 
-      // New users go to import; returning users go home (frontend reads sessionStorage returnTo)
-      return reply.redirect(isNewUser ? '/import' : '/');
+      // New users go to welcome onboarding; returning users go home
+      return reply.redirect(isNewUser ? '/welcome' : '/');
     },
   );
 
