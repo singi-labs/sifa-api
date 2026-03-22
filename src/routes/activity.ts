@@ -367,7 +367,9 @@ export function registerActivityRoutes(
       }
 
       const stats = await getVisibleAppStats(db, did);
-      const topApps = stats.slice(0, 3);
+      // Only consider apps that actually have activity
+      const activeApps = stats.filter((s) => s.isActive && s.recentCount > 0);
+      const topApps = activeApps.slice(0, 3);
 
       if (topApps.length === 0) {
         return reply.send({ items: [] });
@@ -389,18 +391,21 @@ export function registerActivityRoutes(
       const pdsHost = await resolvePdsHost(did);
       const registry = getAppsRegistry();
 
+      // Distribute per-app limit: 5 items total, spread across active apps
+      const perAppLimit = Math.min(5, Math.ceil(5 / topApps.length));
+
       // Build fetch promises for each top app
       const fetchPromises = topApps.map((stat) => {
         const entry = registry.find((e) => e.id === stat.appId);
         if (!entry) return Promise.resolve([]);
 
         if (entry.id === 'bluesky') {
-          return fetchBlueskyItems(did, 2);
+          return fetchBlueskyItems(did, perAppLimit);
         }
 
         if (!pdsHost) return Promise.resolve([]);
         const collection = getCollectionForApp(entry);
-        return fetchPdsItems(pdsHost, did, collection, entry, 2).then((r) => r.items);
+        return fetchPdsItems(pdsHost, did, collection, entry, perAppLimit).then((r) => r.items);
       });
 
       const results = await Promise.allSettled(fetchPromises);
@@ -408,8 +413,7 @@ export function registerActivityRoutes(
       const allItems: ActivityItem[] = [];
       for (const result of results) {
         if (result.status === 'fulfilled' && Array.isArray(result.value)) {
-          // Take up to 2 items per app
-          allItems.push(...result.value.slice(0, 2));
+          allItems.push(...result.value.slice(0, perAppLimit));
         }
       }
 
@@ -420,8 +424,8 @@ export function registerActivityRoutes(
 
       const responseBody = { items: enrichedItems };
 
-      // Cache result
-      if (valkey) {
+      // Only cache non-empty results — empty may be a transient fetch failure
+      if (valkey && items.length > 0) {
         try {
           await valkey.set(cacheKey, JSON.stringify(responseBody), 'EX', 900);
         } catch (err) {
