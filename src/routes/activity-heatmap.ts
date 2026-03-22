@@ -25,8 +25,6 @@ export interface HeatmapResponse {
   thresholds: [number, number, number, number];
 }
 
-const publicBskyAgent = new Agent('https://public.api.bsky.app');
-
 /**
  * Compute quantile-based thresholds [25th, 50th, 75th, 90th] from non-zero day counts.
  * Returns [1,2,3,4] when there are no non-zero values.
@@ -81,55 +79,6 @@ export function aggregateByDay(items: ActivityItem[]): HeatmapDay[] {
 
   days.sort((a, b) => a.date.localeCompare(b.date));
   return days;
-}
-
-/**
- * Fetch all Bluesky posts for a DID since a given date, paging through getAuthorFeed.
- */
-async function fetchAllBlueskyItems(
-  did: string,
-  since: Date,
-  maxPages: number,
-): Promise<ActivityItem[]> {
-  const allItems: ActivityItem[] = [];
-  let cursor: string | undefined;
-
-  for (let page = 0; page < maxPages; page++) {
-    const params: { actor: string; limit: number; cursor?: string } = {
-      actor: did,
-      limit: 100,
-    };
-    if (cursor) params.cursor = cursor;
-
-    const res = await publicBskyAgent.app.bsky.feed.getAuthorFeed(params, {
-      signal: AbortSignal.timeout(5000),
-    });
-
-    let reachedEnd = false;
-    for (const feedItem of res.data.feed) {
-      if (feedItem.post.author.did !== did) continue; // skip reposts
-      const indexedAt = feedItem.post.indexedAt;
-      if (new Date(indexedAt) < since) {
-        reachedEnd = true;
-        break;
-      }
-      allItems.push({
-        uri: feedItem.post.uri,
-        collection: 'app.bsky.feed.post',
-        rkey: feedItem.post.uri.split('/').pop() ?? '',
-        record: feedItem.post.record,
-        appId: 'bluesky',
-        appName: 'Bluesky',
-        category: 'Posts',
-        indexedAt,
-      });
-    }
-
-    if (reachedEnd || !res.data.cursor || res.data.feed.length < 100) break;
-    cursor = res.data.cursor;
-  }
-
-  return allItems;
 }
 
 /**
@@ -228,7 +177,7 @@ export function registerHeatmapRoutes(
     const stats = await getVisibleAppStats(db, did);
     const registry = getAppsRegistry();
     const since = new Date(Date.now() - daysParam * 24 * 60 * 60 * 1000);
-    const maxPages = 30;
+    const maxPages = 50;
 
     const pdsHost = await resolvePdsHost(did);
 
@@ -239,16 +188,18 @@ export function registerHeatmapRoutes(
       const entry = registry.find((e) => e.id === stat.appId);
       if (!entry) return Promise.resolve([] as ActivityItem[]);
 
-      if (entry.id === 'bluesky') {
-        return fetchAllBlueskyItems(did, since, maxPages).catch((err: unknown) => {
-          request.log.warn({ err, appId: entry.id }, 'Failed to fetch Bluesky items for heatmap');
-          return [] as ActivityItem[];
-        });
-      }
-
+      // For the heatmap, always fetch from PDS via listRecords.
+      // The AppView's getAuthorFeed mixes in reposts that get filtered,
+      // wasting pages. PDS listRecords returns only the user's own records.
       if (!pdsHost) return Promise.resolve([] as ActivityItem[]);
-      const collection = getCollectionForApp(entry);
-      return fetchAllPdsItems(pdsHost, did, collection, entry, since, maxPages).catch(
+
+      const collection = entry.id === 'bluesky' ? 'app.bsky.feed.post' : getCollectionForApp(entry);
+      const pdsEntry =
+        entry.id === 'bluesky'
+          ? { ...entry, id: 'bluesky', name: 'Bluesky', category: 'Posts' }
+          : entry;
+
+      return fetchAllPdsItems(pdsHost, did, collection, pdsEntry, since, maxPages).catch(
         (err: unknown) => {
           request.log.warn({ err, appId: entry.id }, 'Failed to fetch PDS items for heatmap');
           return [] as ActivityItem[];
