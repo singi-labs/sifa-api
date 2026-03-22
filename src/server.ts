@@ -49,6 +49,7 @@ import { registerActivityRoutes } from './routes/activity.js';
 import { registerHeatmapRoutes } from './routes/activity-heatmap.js';
 import { registerAppsRoutes } from './routes/apps.js';
 import { registerFeaturedRoutes } from './routes/featured.js';
+import { registerEmailSubscriptionRoutes } from './routes/email-subscription.js';
 import { startFeaturedProfileJob } from './services/featured-job.js';
 import { createBotAgent } from './services/bluesky-bot.js';
 
@@ -167,6 +168,7 @@ export async function buildServer(config: Env) {
   registerHeatmapRoutes(app, db, oauthClient, valkey);
   registerAppsRoutes(app, valkey);
   registerFeaturedRoutes(app, db, valkey);
+  registerEmailSubscriptionRoutes(app, db, oauthClient);
 
   // Start Jetstream in non-test mode
   if (config.NODE_ENV !== 'test') {
