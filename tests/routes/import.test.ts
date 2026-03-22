@@ -63,6 +63,26 @@ describe('Import routes', () => {
     expect(res.statusCode).toBe(503);
   });
 
+  it('POST /api/import/linkedin/confirm strips invalid credential URLs instead of rejecting', async () => {
+    const res = await app.inject({
+      method: 'POST',
+      url: '/api/import/linkedin/confirm',
+      payload: {
+        certifications: [
+          { name: 'Valid Cert', credentialUrl: 'https://example.com/cert' },
+          { name: 'Bad URL Cert', credentialUrl: 'not-a-url' },
+          { name: 'Empty URL Cert', credentialUrl: '' },
+          { name: 'No URL Cert' },
+        ],
+        projects: [{ name: 'Proj', url: 'garbage' }],
+        publications: [{ title: 'Pub', url: '????' }],
+      },
+      cookies: { session: 'test-session-id' },
+    });
+    // 503 because no OAuth client -- but it passed validation (not 400)
+    expect(res.statusCode).toBe(503);
+  });
+
   it('POST /api/import/linkedin/confirm accepts valid payload with all sections', async () => {
     const res = await app.inject({
       method: 'POST',

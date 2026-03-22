@@ -1,5 +1,20 @@
 import { z } from 'zod';
 
+/** Accept a URL string or silently drop it if invalid (returns undefined). */
+const optionalUrl = () =>
+  z
+    .string()
+    .optional()
+    .transform((val) => {
+      if (!val) return undefined;
+      try {
+        new URL(val);
+        return val;
+      } catch {
+        return undefined;
+      }
+    });
+
 const locationSchema = z
   .union([
     z.object({
@@ -60,7 +75,7 @@ export const certificationSchema = z.object({
   name: z.string().min(1).max(100),
   authority: z.string().max(100).optional(),
   credentialId: z.string().max(100).optional(),
-  credentialUrl: z.string().url().optional(),
+  credentialUrl: optionalUrl(),
   issuedAt: z.string().optional(),
   expiresAt: z.string().optional(),
 });
@@ -68,7 +83,7 @@ export const certificationSchema = z.object({
 export const projectSchema = z.object({
   name: z.string().min(1).max(100),
   description: z.string().max(50000).optional(),
-  url: z.string().url().optional(),
+  url: optionalUrl(),
   startDate: z.string().optional(),
   endDate: z.string().optional(),
 });
@@ -85,7 +100,7 @@ export const volunteeringSchema = z.object({
 export const publicationSchema = z.object({
   title: z.string().min(1).max(200),
   publisher: z.string().max(100).optional(),
-  url: z.string().url().optional(),
+  url: optionalUrl(),
   description: z.string().max(50000).optional(),
   publishedAt: z.string().optional(),
 });
