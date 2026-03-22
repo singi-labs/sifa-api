@@ -1,7 +1,7 @@
 import type { FastifyInstance } from 'fastify';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
-import { eq, and, gt } from 'drizzle-orm';
+import { eq, and, gt, sql } from 'drizzle-orm';
 import type { NodeOAuthClient } from '@atproto/oauth-client-node';
 import { Agent } from '@atproto/api';
 import type { Database } from '../db/index.js';
@@ -290,6 +290,19 @@ export function registerOAuthRoutes(
 
         const STALE_MS = 12 * 60 * 60 * 1000; // 12 hours
 
+        // Count total profile data records to determine if user is new
+        const [profileDataCount] = await db
+          .select({
+            total: sql<number>`(
+              (SELECT count(*) FROM positions WHERE did = ${row.did}) +
+              (SELECT count(*) FROM education WHERE did = ${row.did}) +
+              (SELECT count(*) FROM skills WHERE did = ${row.did})
+            )::int`,
+          })
+          .from(sql`(SELECT 1) AS _dummy`);
+
+        const isNewUser = (profileDataCount?.total ?? 0) === 0;
+
         if (!profile) {
           // Profile not yet synced locally — resolve from Bluesky and trigger sync
           const publicAgent = new Agent('https://public.api.bsky.app');
@@ -328,6 +341,7 @@ export function registerOAuthRoutes(
             handle: bskyProfile.data.handle,
             displayName: bskyProfile.data.displayName,
             avatar: bskyProfile.data.avatar,
+            isNewUser,
           });
         }
 
@@ -360,6 +374,7 @@ export function registerOAuthRoutes(
           handle: profile.handle,
           displayName: profile.displayName,
           avatar: profile.avatarUrl,
+          isNewUser,
         });
       } catch {
         reply.clearCookie('session', { path: '/' });
